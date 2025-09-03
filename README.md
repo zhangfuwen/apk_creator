@@ -25,6 +25,9 @@ MyApp/
 │       └── strings.xml
 │   └── layout/
 │       └── activity_main.xml
+│   └── mipmap/
+│       └── icon.png
+├── assets/test.txt
 ├── AndroidManifest.xml
 └── build/
 ```
@@ -131,6 +134,12 @@ cd build/dex
 zip -g ../apk/app-unaligned.apk classes.dex
 cd ../..
 
+```
+
+## Add asssets to APK
+
+```bash
+find assets -type f -exec zip myapp.apk {} \;
 ```
 
 ## Add native library to APK

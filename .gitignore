@@ -1,2 +1,4 @@
 build
 mykey.jks
+.cache/
+compile_commands.json
