@@ -35,9 +35,14 @@ MyApp/
 Set environment variables:
 
 ```bash
+# You have to have this version of JDK, otherwise it won't work
+# To install this version of JDK, you can use `apt install openjdk-8-jdk`
+JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64 
+
 export NDK_VERSION="27.3.13750724"
-export PLATFORM_VERSION="android-34"
-export CMAKE_VERSION="3.10.2.4988404"
+export PLATFORM_VERSION_NUMBER="34"
+export PLATFORM_VERSION="android-${PLATFORM_VERSION_NUMBER}"
+export CMAKE_VERSION="4.1.0"
 export BUILD_TOOLS_VERSION="34.0.0"
 
 export ANDROID_HOME=$HOME/bin/android-sdk
@@ -113,18 +118,31 @@ $ANDROID_HOME/build-tools/${BUILD_TOOLS_VERSION}/aapt2 link \
   --java build/gen \
   --no-version-vectors \
   -o build/apk/app-unaligned.apk \
-  --resources-dir build/res-compiled \
   --allow-reserved-package-id \
-  --package-id 0x7f
+  --package-id 0x7f \
+   build/res-compiled/*.flat
 
 ```
 
 ## Add DEX file to APK 
 
 ```bash
+cd build/dex
+zip -g ../apk/app-unaligned.apk classes.dex
+cd ../..
 
-zip -g build/apk/app-unaligned.apk build/dex/classes.dex
+```
 
+## Add native library to APK
+
+for how to build native library, refer to [this page](doc/native_lib.md)
+
+```bash
+cd build/native_lib
+mkdir -p lib/arm64-v8a
+mv libmain.so lib/arm64-v8a
+zip -g ../apk/app-unaligned.apk lib/arm64-v8a/libmain.so
+cd ../..
 ```
 
 ## Align the APK with zipalign
