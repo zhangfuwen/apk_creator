@@ -2,3 +2,4 @@ build
 mykey.jks
 .cache/
 compile_commands.json
+rust_lib/target
