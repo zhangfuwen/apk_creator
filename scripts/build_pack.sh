@@ -18,18 +18,15 @@ export ANDROID_SDK=$ANDROID_HOME
 
 echo "ANDROID_HOME=$ANDROID_HOME"
 
-### Compile Resources with aapt2
-
+echo "Compile Resources with aapt2"
 mkdir -p build/res-compiled
 
 $ANDROID_HOME/build-tools/${BUILD_TOOLS_VERSION}/aapt2 compile \
   --dir res \
   -o build/res-compiled/
 
-### Link resources into resources.arsc and final APK
-
+echo "Link resources into resources.arsc and final APK"
 mkdir -p build/apk
-
 $ANDROID_HOME/build-tools/${BUILD_TOOLS_VERSION}/aapt2 link \
   --manifest AndroidManifest.xml \
   -I $ANDROID_HOME/platforms/${PLATFORM_VERSION}/android.jar \
@@ -41,44 +38,47 @@ $ANDROID_HOME/build-tools/${BUILD_TOOLS_VERSION}/aapt2 link \
   --package-id 0x7f \
    build/res-compiled/*.flat
 
-### Add assets to apk
+echo "Add assets to apk"
 find assets -type f -exec zip build/apk/app-unaligned.apk {} \;
 
 
-## Add DEX file to APK 
+echo "Add DEX file to APK"
 if [[ -d build/dex ]]; then
     cd build/dex
     zip -g ../apk/app-unaligned.apk classes.dex
     cd ../..
 fi
 
-## add library to apk
-if [[ -d build/native_lib ]]; then
-    cd build/native_lib
+echo "Add library to apk"
+if [[ -d build/native_libs ]]; then
+    cd build/native_libs
     zip -g ../apk/app-unaligned.apk lib/arm64-v8a/libmain.so
     cd ../..
 fi
 
-## add rust library to apk
-if [[ -d build/rust_lib ]]; then
-    cd build/rust_lib
+echo "Add rust library to apk"
+if [[ -d build/native_libs ]]; then
+    cd build/native_libs
     zip -g ../apk/app-unaligned.apk lib/arm64-v8a/librust_lib.so
     cd ../..
 fi
 
 
-## Align the APK with zipalign
+echo "Align the APK with zipalign"
 $ANDROID_HOME/build-tools/34.0.0/zipalign \
   -f 4 \
   build/apk/app-unaligned.apk \
   build/apk/app-aligned.apk
 
 
-## Sign the APK
+echo "Sign the APK"
 $ANDROID_HOME/build-tools/34.0.0/apksigner sign \
   --key-pass pass:android \
   --ks-pass pass:android \
   --ks mykey.jks \
   --out build/apk/app-signed.apk \
   build/apk/app-aligned.apk
+
+echo "Show APK content:"
+unzip -l build/apk/app-signed.apk
 

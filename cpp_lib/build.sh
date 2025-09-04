@@ -1,8 +1,10 @@
-[[ -d build/native_lib ]] || mkdir build/native_lib
+[[ -d build/build_cpp ]] || mkdir build/build_cpp
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+echo "Building project at: $SCRIPT_DIR"
 # if you don't specify a preset, it won't use CMakePresets.json
 PATH=$PATH:${ANDROID_SDK}/cmake/${CMAKE_VERSION}/bin \
-${ANDROID_SDK}/cmake/${CMAKE_VERSION}/bin/cmake -S lib -B build/native_lib --preset=android-arm64
+${ANDROID_SDK}/cmake/${CMAKE_VERSION}/bin/cmake -S $SCRIPT_DIR -B build/build_cpp --preset=android-arm64
 
 PATH=$PATH:${ANDROID_SDK}/cmake/${CMAKE_VERSION}/bin VERBOSE=1 \
-${ANDROID_SDK}/cmake/${CMAKE_VERSION}/bin/cmake --build build/native_lib
+${ANDROID_SDK}/cmake/${CMAKE_VERSION}/bin/cmake --build build/build_cpp

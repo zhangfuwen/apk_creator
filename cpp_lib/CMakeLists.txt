@@ -31,7 +31,7 @@ set(CMAKE_SHARED_LINKER_FLAGS
     "${CMAKE_SHARED_LINKER_FLAGS} -u ANativeActivity_onCreate")
 
 # Main native library
-add_library(main SHARED main.cpp rectangle_renderer.cpp gl.cpp)
+add_library(main SHARED main.cpp)
 set_target_properties(main PROPERTIES LINKER_LANGUAGE CXX)
 target_include_directories(
   main PRIVATE ${CMAKE_ANDROID_NDK}/sources/android/native_app_glue)
