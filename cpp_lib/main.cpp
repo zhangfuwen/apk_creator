@@ -11,6 +11,8 @@
 #include <jni.h>
 #include <android/native_activity.h>
 
+#include <android/permission_manager.h>
+
 
 #define LOG_TAG   "NativeOpenGL"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
@@ -413,6 +415,11 @@ void android_main(struct android_app* state) {
     gapp = state;
 
     AndroidMakeFullscreen();
+
+    int32_t outResult;
+    uint32_t pid = 0;
+    uint32_t uid = 0;
+    APermissionManager_checkPermission("CAMERA", pid, uid, &outResult);
 
     LOGI("Native OpenGL app started");
 
