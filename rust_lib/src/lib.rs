@@ -1,5 +1,30 @@
 use std::ffi::{CStr, CString};
+use opencv::prelude::*;
+use opencv::{highgui, imgcodecs};
+// use yolo_detector::YoloDetector;
 
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_opencv_test() {
+//    let detector = YoloDetector::new("yolov8m.onnx", "coco.names", 640).unwrap();
+
+    match imgcodecs::imread("image.jpg", imgcodecs::IMREAD_COLOR) {
+        Ok(mat) => println!("Image loaded"),
+        Err(e) => println!("Error loading image: {}", e),
+    }
+    // if let Some(mat) = imgcodecs::imread("image.jpg", imgcodecs::IMREAD_COLOR) {
+    //     println!("Image loaded successfully!");
+    // } else {
+    //     println!("Failed to load image!");
+    // }
+
+ //   let (detections, original_size) = detector.detect(&mat.clone())?;
+
+  //  let result = detector.draw_detections(mat.clone(), detections, 0.5, 0.5, original_size)?;
+//    println!(mat.);
+
+//    highgui::imshow("YOLOv8 Video", &result)?;
+    highgui::wait_key(0);
+}
 
 pub fn add(left: u64, right: u64) -> u64 {
     left + right

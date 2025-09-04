@@ -7,14 +7,8 @@ edition = "2024"
 name = "rust_lib"
 crate-type = ["cdylib"]
 
-# [dependencies]
-# cargo-vcpkg = "0.1.7"
-# opencv = "0.95.1"
-#
-# [package.metadata.vcpkg]
-# git = "https://github.com/microsoft/vcpkg"
-# rev = "4c1db68"
-# dependencies = ["opencv"]
-#
-# [package.metadata.vcpkg.target]
-# aarch64-linux-android = { dependencies = ["opencv"] }
+[dependencies]
+# vcpkg = "0.2.15"
+vcpkg_rs_mf = "0.3.1"
+# yolo_detector = "1.0.1"
+opencv = "0.95.1"

@@ -46,33 +46,28 @@ find assets -type f -exec zip build/apk/app-unaligned.apk {} \;
 
 
 ## Add DEX file to APK 
-
-cd build/dex
-zip -g ../apk/app-unaligned.apk classes.dex
-cd ../..
-
-
-## build library
-
-[[ -d build/native_lib ]] || mkdir build/native_lib
-
-# if you don't specify a preset, it won't use CMakePresets.json
-PATH=$PATH:${ANDROID_SDK}/cmake/${CMAKE_VERSION}/bin \
-${ANDROID_SDK}/cmake/${CMAKE_VERSION}/bin/cmake -S lib -B build/native_lib --preset=android-arm64
-
-PATH=$PATH:${ANDROID_SDK}/cmake/${CMAKE_VERSION}/bin VERBOSE=1 \
-${ANDROID_SDK}/cmake/${CMAKE_VERSION}/bin/cmake --build build/native_lib
+if [[ -d build/dex ]]; then
+    cd build/dex
+    zip -g ../apk/app-unaligned.apk classes.dex
+    cd ../..
+fi
 
 ## add library to apk
+if [[ -d build/native_lib ]]; then
+    cd build/native_lib
+    zip -g ../apk/app-unaligned.apk lib/arm64-v8a/libmain.so
+    cd ../..
+fi
 
-cd build/native_lib
-mkdir -p lib/arm64-v8a
-mv libmain.so lib/arm64-v8a
-zip -g ../apk/app-unaligned.apk lib/arm64-v8a/libmain.so
-cd ../..
+## add rust library to apk
+if [[ -d build/rust_lib ]]; then
+    cd build/rust_lib
+    zip -g ../apk/app-unaligned.apk lib/arm64-v8a/librust_lib.so
+    cd ../..
+fi
+
 
 ## Align the APK with zipalign
-
 $ANDROID_HOME/build-tools/34.0.0/zipalign \
   -f 4 \
   build/apk/app-unaligned.apk \
@@ -80,7 +75,6 @@ $ANDROID_HOME/build-tools/34.0.0/zipalign \
 
 
 ## Sign the APK
-
 $ANDROID_HOME/build-tools/34.0.0/apksigner sign \
   --key-pass pass:android \
   --ks-pass pass:android \

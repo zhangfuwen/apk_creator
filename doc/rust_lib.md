@@ -90,3 +90,66 @@ build and then you will get:
   2644: 0000000000017e70   524 FUNC    GLOBAL DEFAULT   14 rust_greeting
   ...
 ```
+
+
+## Using OpenCV via vcpkg
+
+### Install C++ opencv4 using vcpkg
+
+```bash
+
+export VCPKG_ROOT="$HOME/bin/vcpkg"
+[[ -d $VCPKG_ROOT ]] ||  git clone https://github.com/microsoft/vcpkg "$HOME/bin/vcpkg"
+export PATH=$PATH:$VCPKG_ROOT/
+export VCPKG_DEFAULT_TRIPLET=arm64-android
+export EDITOR=nvim
+
+# rust specific env vars
+export VCPKGRS_TRIPLET=arm64-android
+
+vcpkg install opencv4:arm64-android
+
+```
+
+### Use opencv in rust code 
+
+```rust
+
+use opencv::prelude::*;
+use opencv::{highgui, imgcodecs};
+
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_opencv_test() {
+
+    match imgcodecs::imread("image.jpg", imgcodecs::IMREAD_COLOR) {
+        Ok(mat) => println!("Image loaded"),
+        Err(e) => println!("Error loading image: {}", e),
+    }
+    highgui::wait_key(0);
+}
+
+```
+
+### Build the rust library
+
+```bash
+# cargo install cargo-vcpkg
+
+# this command will download vcpkg and 
+# install dependencies declared under the vcpkg section
+# cargo vcpkg build
+
+# checkout to lastest tag manually
+# so that vcpkg support arm64-android
+
+# this command will build rust and find dependencies via vcpkg
+cargo ndk -t arm64-v8a -t armeabi-v7a build --release
+
+```
+
+### Copy library to APK build directory 
+
+```bash
+mkdir build/rust_lib/lib/arm64-v8a
+cp rust_lib/target/aarch64-linux-android/release/librust_lib.so build/rust_lib/lib/arm64-v8a/
+```
