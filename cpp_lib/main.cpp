@@ -232,7 +232,7 @@ jstring android_permission_name(JNIEnv* env, const char* perm_name) {
         return nullptr;
     }
     LOG_LINE();
-    auto       ls_PERM = (jstring)env->GetObjectField(ClassManifestpermission, lid_PERM);
+    auto       ls_PERM = (jstring)env->GetStaticObjectField(ClassManifestpermission, lid_PERM);
     LOG_LINE();
     return ls_PERM;
 }
@@ -430,19 +430,19 @@ void android_main(struct android_app* state) {
     //     LOGI("perm_write_exteranl_storage: %d", perm_write_exteranl_storage);
     // }
 
-    // {
-    //     int perm_read_exteranl_storage = AndroidHasPermissions("READ_EXTERNAL_STORAGE");
-    //     int perm_write_exteranl_storage = AndroidHasPermissions("WRITE_EXTERNAL_STORAGE");
-    //     int perm_camera = AndroidHasPermissions("CAMERA");
-    //     LOGI("perm_read_exteranl_storage: %d", perm_read_exteranl_storage);
-    //     LOGI("perm_write_exteranl_storage: %d", perm_write_exteranl_storage);
-    //     LOGI("perm_camera: %d", perm_camera);
-    //     if (!perm_camera) {
-    //         AndroidRequestAppPermissions("CAMERA");
-    //         int perm_camera = AndroidHasPermissions("CAMERA");
-    //         LOGI("perm_camera: %d", perm_camera);
-    //     }
-    // }
+    {
+        int perm_read_exteranl_storage = AndroidHasPermissions("READ_EXTERNAL_STORAGE");
+        int perm_write_exteranl_storage = AndroidHasPermissions("WRITE_EXTERNAL_STORAGE");
+        int perm_camera = AndroidHasPermissions("CAMERA");
+        LOGI("perm_read_exteranl_storage: %d", perm_read_exteranl_storage);
+        LOGI("perm_write_exteranl_storage: %d", perm_write_exteranl_storage);
+        LOGI("perm_camera: %d", perm_camera);
+        if (!perm_camera) {
+            AndroidRequestAppPermissions("CAMERA");
+            int perm_camera = AndroidHasPermissions("CAMERA");
+            LOGI("perm_camera: %d", perm_camera);
+        }
+    }
 
     int                         events;
     struct android_poll_source* source;
