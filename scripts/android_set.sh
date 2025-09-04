@@ -1,7 +1,47 @@
 
 # You have to have this version of JDK, otherwise it won't work
 # To install this version of JDK, you can use `apt install openjdk-8-jdk`
-JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64 
+detect_osname() {
+    local os_name="unknown"
+
+    # 检查环境变量 OS 或 OSTYPE
+    if [ -n "$OS" ]; then
+        os_name="$OS"
+    elif [ -n "$OSTYPE" ]; then
+        os_name="$OSTYPE"
+    fi
+
+    # 判断操作系统类型
+    if [ "$os_name" = "Windows_NT" ]; then
+        echo "Windows"
+    elif [[ "$os_name" == *"linux"* ]]; then
+        echo "Linux"
+    elif [[ "$os_name" == *"darwin"* ]] || [ "$os_name" = "Darwin" ]; then
+        echo "macOS"
+    else
+        # 回退到 uname 命令
+        if command -v uname >/dev/null 2>&1; then
+            uname_out=$(uname -s 2>/dev/null)
+            if [ "$uname_out" = "Darwin" ]; then
+                echo "macOS"
+            elif [ "$uname_out" = "Linux" ]; then
+                echo "Linux"
+            else
+                echo "$uname_out"
+            fi
+        else
+            echo "unknown"
+        fi
+    fi
+}
+os=$(detect_osname)
+
+if [[ $os == "macOS" ]]; then
+    export JAVA_HOME=/usr/local/Cellar/openjdk@8/1.8.0-462
+elif [[ $os == "Linux" ]]; then
+    export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64 
+elif [[ $os == "Windows" ]]; then
+fi
 
 export NDK_VERSION="27.3.13750724"
 export PLATFORM_VERSION_NUMBER="34"
@@ -18,11 +58,11 @@ echo "ANDROID_HOME=$ANDROID_HOME"
 
 export URL_CLITOOLS=https://dl.google.com/android/repository/commandlinetools-mac-6200805_latest.zip
 export TMPFILE="$HOME/temp.zip"
-[[ -d $ANDROID_HOME ]] || mkdir -p $ANDROID_HOME
-
-    wget --quiet ${URL_CLITOOLS} -O ${TMPFILE} \
+if [[ ! -d $ANDROID_HOME ]] ; then
+    mkdir -p $ANDROID_HOME && wget --quiet ${URL_CLITOOLS} -O ${TMPFILE} \
     && unzip -d ${ANDROID_HOME} ${TMPFILE} \
     && rm ${TMPFILE}
+fi
 
 
 #Install SDK, NDK and other tools:

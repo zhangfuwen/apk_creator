@@ -6,5 +6,10 @@ echo "Building project at: $SCRIPT_DIR"
 
 [[ -d $BUILD_DIR ]] || mkdir -p $BUILD_DIR 
 
+if cargo info cargo-ndk --offline >/dev/null 2>&1; then
+else
+    cargo install cargo-ndk
+fi
+
 cd $SCRIPT_DIR
 cargo ndk -t arm64-v8a build --release -o $OUTPUT_DIR --target-dir=$BUILD_DIR --link-libcxx-shared --link-builtins
