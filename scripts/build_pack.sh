@@ -60,6 +60,7 @@ echo "Add rust library to apk"
 if [[ -d build/native_libs ]]; then
     cd build/native_libs
     zip -g ../apk/app-unaligned.apk lib/arm64-v8a/librust_lib.so
+    zip -g ../apk/app-unaligned.apk lib/arm64-v8a/libc++_shared.so
     cd ../..
 fi
 

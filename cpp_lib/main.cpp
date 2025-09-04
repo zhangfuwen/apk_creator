@@ -13,11 +13,46 @@
 
 #include <android/permission_manager.h>
 
+#include <dlfcn.h>
+
 
 #define LOG_TAG   "NativeOpenGL"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
 
 #define LOG_LINE() __android_log_print(ANDROID_LOG_INFO, LOG_TAG, "%s:%d", __FILE__, __LINE__)
+
+using TestFunc = void(*)(void);
+TestFunc rust_test_func;
+void link_rust() {
+    // Step 1: Open the shared library
+    void* handle = dlopen("librust_lib.so", RTLD_LAZY);
+    if (!handle) {
+        LOGI("Error loading library: %s", dlerror());
+        return;
+    }
+
+    // Step 2: Clear any existing error
+    dlerror();
+
+    // Step 3: Load the function symbol
+    rust_test_func= (TestFunc) dlsym(handle, "rust_opencv_test");
+
+    // Check for errors
+    const char* dlsym_error = dlerror();
+    if (dlsym_error) {
+        LOGI("Error loading symbol 'rust_opencv_test': %s", dlsym_error);
+        dlclose(handle);
+        return;
+    }
+
+    // Step 4: Call the function
+    rust_test_func();
+
+    // Step 5: Close the library
+    dlclose(handle);
+
+    return;
+}
 
 struct Engine {
     android_app*   app;
@@ -403,8 +438,6 @@ void AndroidRequestAppPermissions(const char* perm) {
 		android_request_app_permissions( "RECORD_AUDIO" );
 	}
 */
-
-
 // Main entry point
 void android_main(struct android_app* state) {
     Engine engine = {};
@@ -415,6 +448,7 @@ void android_main(struct android_app* state) {
     gapp = state;
 
     AndroidMakeFullscreen();
+    link_rust();
 
     int32_t outResult;
     uint32_t pid = 0;

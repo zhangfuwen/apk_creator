@@ -1,15 +1,19 @@
 use std::ffi::{CStr, CString};
 use opencv::prelude::*;
 use opencv::{highgui, imgcodecs};
+
+#[macro_use] extern crate log;
+extern crate android_log;
 // use yolo_detector::YoloDetector;
 
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_opencv_test() {
 //    let detector = YoloDetector::new("yolov8m.onnx", "coco.names", 640).unwrap();
+    android_log::init("NativeOpenGL").unwrap();
 
     match imgcodecs::imread("image.jpg", imgcodecs::IMREAD_COLOR) {
-        Ok(mat) => println!("Image loaded"),
-        Err(e) => println!("Error loading image: {}", e),
+        Ok(mat) => info!("Image loaded"),
+        Err(e) => error!("Error loading image: {}", e),
     }
     // if let Some(mat) = imgcodecs::imread("image.jpg", imgcodecs::IMREAD_COLOR) {
     //     println!("Image loaded successfully!");
@@ -23,7 +27,7 @@ pub extern "C" fn rust_opencv_test() {
 //    println!(mat.);
 
 //    highgui::imshow("YOLOv8 Video", &result)?;
-    highgui::wait_key(0);
+    //highgui::wait_key(0);
 }
 
 pub fn add(left: u64, right: u64) -> u64 {
