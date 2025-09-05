@@ -6,8 +6,8 @@ echo "Building project at: $SCRIPT_DIR"
 
 [[ -d $BUILD_DIR ]] || mkdir -p $BUILD_DIR 
 
-if cargo info cargo-ndk --offline >/dev/null 2>&1; then
-else
+cargo info cargo-ndk --offline >/dev/null 2>&1
+if [ $? != 0 ]; then
     cargo install cargo-ndk
 fi
 

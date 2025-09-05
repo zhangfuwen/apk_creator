@@ -57,9 +57,13 @@ if [[ -d build/native_libs ]]; then
 fi
 
 echo "Add rust library to apk"
-if [[ -d build/native_libs ]]; then
+if [[ -d build/native_libs/lib/arm64-v8a/librust_lib.so ]]; then
     cd build/native_libs
     zip -g ../apk/app-unaligned.apk lib/arm64-v8a/librust_lib.so
+    cd ../..
+fi
+if [[ -d build/native_libs/lib/arm64-v8a/libc++_shared.so ]]; then
+    cd build/native_libs
     zip -g ../apk/app-unaligned.apk lib/arm64-v8a/libc++_shared.so
     cd ../..
 fi
@@ -71,6 +75,20 @@ $ANDROID_HOME/build-tools/34.0.0/zipalign \
   build/apk/app-unaligned.apk \
   build/apk/app-aligned.apk
 
+if [[ ! -e mykey.jks ]]; then
+    echo "Generating mykey.jks"
+    keytool -genkeypair \
+      -alias mykey \
+      -keyalg RSA \
+      -keysize 2048 \
+      -validity 10000 \
+      -keystore mykey.jks \
+      -storepass android \
+      -keypass android \
+      -dname "CN=,OU=,O=,L=,S=,C=US"
+else
+    echo "Using local mykey.jks"
+fi
 
 echo "Sign the APK"
 $ANDROID_HOME/build-tools/34.0.0/apksigner sign \
