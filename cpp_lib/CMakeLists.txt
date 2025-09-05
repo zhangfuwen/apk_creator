@@ -15,7 +15,7 @@ include_directories(
 find_library(log-lib log)
 find_library(android-lib android)
 find_library(EGL-lib EGL)
-find_library(GLESv2-lib GLESv2)
+find_library(GLESv3-lib GLESv3)
 
 # Build native_app_glue (required for NativeActivity) build native_app_glue as a
 # static lib
@@ -31,7 +31,9 @@ set(CMAKE_SHARED_LINKER_FLAGS
     "${CMAKE_SHARED_LINKER_FLAGS} -u ANativeActivity_onCreate")
 
 # Main native library
-add_library(main SHARED main.cpp)
+add_library(main SHARED main.cpp
+    rectangles_renderer.cpp
+)
 set_target_properties(main PROPERTIES LINKER_LANGUAGE CXX)
 target_include_directories(
   main PRIVATE ${CMAKE_ANDROID_NDK}/sources/android/native_app_glue)
@@ -44,4 +46,4 @@ target_link_libraries(
   ${log-lib}
   ${android-lib}
   ${EGL-lib}
-  ${GLESv2-lib})
+  ${GLESv3-lib})

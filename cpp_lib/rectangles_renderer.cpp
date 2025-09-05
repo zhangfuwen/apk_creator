@@ -1,8 +1,17 @@
 // RectanglesRenderer.cpp
-#include "RectanglesRenderer.h"
+#include "rectangles_renderer.h"
 #include <cstdio>
 #include <cstdlib>
 
+#define GL_GLEXT_PROTOTYPES 1
+#include <GLES3/gl3.h>
+#include <GLES3/gl31.h>
+#include <GLES3/gl32.h>
+#include <GLES3/gl3ext.h>
+#include <GLES3/gl3platform.h>
+
+namespace renderer_2d {
+    
 // Vertex Shader
 const char* vertexShaderSource = R"glsl(
 #version 300 es
@@ -179,3 +188,4 @@ void RectanglesRenderer::render() {
 void RectanglesRenderer::clear() {
     instances.clear();
 }
+};

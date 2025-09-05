@@ -29,12 +29,12 @@ private:
     GLuint createProgram();
 
 public:
-    RectanglesRenderer();
+    RectanglesRenderer() ;
     ~RectanglesRenderer();
 
     // Add a rectangle: x, y, width, height, color (r,g,b,a)
     void addRectangle(float x, float y, float w, float h,
-                      float r = 1.0f, float g = 1.0f, float b = 1.0f, float a = 1.0f);
+                      float r = 1.0f, float g = 0.0f, float b = 1.0f, float a = 1.0f);
 
     // Update GPU buffer and draw all rectangles
     void render();

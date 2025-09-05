@@ -15,14 +15,15 @@
 
 #include <dlfcn.h>
 
-
 #define LOG_TAG   "NativeOpenGL"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
 
 #define LOG_LINE() __android_log_print(ANDROID_LOG_INFO, LOG_TAG, "%s:%d", __FILE__, __LINE__)
+#include "gl.h"
 
-using TestFunc = void(*)(void);
+using TestFunc = void (*)(void);
 TestFunc rust_test_func;
+
 void link_rust() {
     // Step 1: Open the shared library
     void* handle = dlopen("librust_lib.so", RTLD_LAZY);
@@ -35,7 +36,7 @@ void link_rust() {
     dlerror();
 
     // Step 3: Load the function symbol
-    rust_test_func= (TestFunc) dlsym(handle, "rust_opencv_test");
+    rust_test_func = (TestFunc)dlsym(handle, "rust_opencv_test");
 
     // Check for errors
     const char* dlsym_error = dlerror();
@@ -53,6 +54,8 @@ void link_rust() {
 
     return;
 }
+
+renderer_2d::Scene* scene;
 
 struct Engine {
     android_app*   app;
@@ -132,7 +135,7 @@ void engine_draw(Engine* engine) {
 
     glClearColor(g_color.r, g_color.g, g_color.b, g_color.a);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
+    scene->draw();
     eglSwapBuffers(engine->display, engine->surface);
 }
 
@@ -261,13 +264,13 @@ jstring android_permission_name(JNIEnv* env, const char* perm_name) {
     //    jstring ls_PERM = (jstring)(env->GetStaticObjectField( envptr, ClassManifestpermission, lid_PERM ));
     const auto ClassManifestpermission = env->FindClass("android/Manifest$permission");
     LOG_LINE();
-    auto       lid_PERM = env->GetStaticFieldID(ClassManifestpermission, perm_name, "Ljava/lang/String;");
+    auto lid_PERM = env->GetStaticFieldID(ClassManifestpermission, perm_name, "Ljava/lang/String;");
     if (lid_PERM == nullptr) {
         LOGI("permission not found: %s", perm_name);
         return nullptr;
     }
     LOG_LINE();
-    auto       ls_PERM = (jstring)env->GetStaticObjectField(ClassManifestpermission, lid_PERM);
+    auto ls_PERM = (jstring)env->GetStaticObjectField(ClassManifestpermission, lid_PERM);
     LOG_LINE();
     return ls_PERM;
 }
@@ -415,7 +418,7 @@ void AndroidRequestAppPermissions(const char* perm) {
     struct android_app* app = gapp;
     JNIEnv*             env = 0;
     JNIEnv**            envptr = &env;
-    JavaVM*       jvm = app->activity->vm;
+    JavaVM*             jvm = app->activity->vm;
     jvm->AttachCurrentThread(envptr, NULL);
     jobject activity = app->activity->clazz;
 
@@ -450,7 +453,7 @@ void android_main(struct android_app* state) {
     AndroidMakeFullscreen();
     link_rust();
 
-    int32_t outResult;
+    int32_t  outResult;
     uint32_t pid = 0;
     uint32_t uid = 0;
     APermissionManager_checkPermission("CAMERA", pid, uid, &outResult);
@@ -478,6 +481,7 @@ void android_main(struct android_app* state) {
         }
     }
 
+
     int                         events;
     struct android_poll_source* source;
 
@@ -497,10 +501,17 @@ void android_main(struct android_app* state) {
 
         // Only draw if initialized
         if (engine.initialized) {
+            if (scene == nullptr) {
+                scene = new renderer_2d::Scene();
+                scene->addRectangle(std::make_shared<renderer_2d::Rectangle>(0, 0, 0.2, 0.2));
+                scene->addRectangle(std::make_shared<renderer_2d::Rectangle>(0.5, 0.5, 0.2, 0.2));
+                scene->addRectangle(std::make_shared<renderer_2d::Rectangle>(0.8, 0.8, 0.2, 0.2));
+            }
             uint64_t now = get_time_millis();
             if (now - update_time > 1000) {
                 change_color();
                 update_time = now;
+                scene->update();
             }
             engine_draw(&engine);
         }

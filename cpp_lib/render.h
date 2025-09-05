@@ -3,7 +3,7 @@ namespace renderer_2d {
 
     class Renderer {
       public:
-        virtual void addObject(Object o);
+        virtual void addObject(Object* o) {};
     };
 
 };

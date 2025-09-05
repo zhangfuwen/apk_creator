@@ -1,3 +1,5 @@
+#include <algorithm>
+#include <cstdlib>
 #include <memory>
 #include <stdint.h>
 #include <vector>
@@ -19,6 +21,7 @@ namespace renderer_2d {
     };
 
     struct Object {
+      public:
         Object(Point start) { position = start; }
 
         Point position;
@@ -26,18 +29,34 @@ namespace renderer_2d {
         Color color = {0.5f, 0.0f, 0.0f, 1.0f};
 
         virtual void draw() { }
+        virtual void update() {}
 
-        void addChild(Object o) { children.push_back(o); }
+        void addChild(std::shared_ptr<Object> o) { children.push_back(o); }
 
-      private:
-        std::vector<Object> children;
+      protected:
+        std::vector<std::shared_ptr<Object>> children;
     };
 
-    class Rectangle : Object {
+    class Rectangle : public Object {
+      public:
+        Rectangle(float x, float y, float w, float h) : Object({x, y}) { size_ = {w, h}; }
+
         Rectangle(Point start, Size sz) : Object(start) { size_ = sz; }
+        void update() override {
+            srand(time(nullptr));
+            auto delta_x = (rand() %100) * 0.01 - 0.5;
+            auto delta_y = (rand() %100) * 0.01 - 0.5;
+            position.x += delta_x;
+            position.y += delta_y;
+            position.x = std::clamp(position.x, 0.0f, 1.0f);
+            position.y = std::clamp(position.y, 0.0f, 1.0f);
+
+            LOGI("new position, x:%f, y:%f", position.x, position.y);
+        }
 
       private:
         friend class RectanglesRenderer;
+        friend class Scene;
         Size size_;
     };
 
@@ -78,18 +97,24 @@ namespace renderer_2d {
     struct Scene {
         RectanglesRenderer rectangles_renderer;
 
-        void addRectangle(Rectangle* rect) { rectangles.push_back(std::shared_ptr<Rectangle>(rect)); }
+        void addRectangle(std::shared_ptr<Rectangle> rect) { rectangles.push_back(rect); }
 
-        void addObejct(Object o) { objects.push_back(o); }
+        void update() {
+            LOGI("update");
+            for(auto &rect : rectangles) {
+                rect->update();
+            }
+        }
 
         void draw() {
+            rectangles_renderer.clear();
             for (auto o : rectangles) {
-                rectangles_renderer.addRectangle(o->position.x, o.position.y, o.size_.width, o.size_.height);
+                rectangles_renderer.addRectangle(o->position.x, o->position.y, o->size_.width, o->size_.height);
             }
+            rectangles_renderer.render();
         }
 
       private:
         std::vector<std::shared_ptr<Rectangle>> rectangles;
-        std::vector<Object>                     objects;
     };
 }  // namespace renderer_2d
