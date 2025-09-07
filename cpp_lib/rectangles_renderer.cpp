@@ -10,6 +10,8 @@
 #include <GLES3/gl3ext.h>
 #include <GLES3/gl3platform.h>
 
+#include "log.h"
+
 namespace renderer_2d {
     
 // Vertex Shader
@@ -102,7 +104,7 @@ GLuint RectanglesRenderer::compileShader(GLenum type, const char* source) {
         glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &logLength);
         char* log = (char*)malloc(logLength);
         glGetShaderInfoLog(shader, logLength, nullptr, log);
-        fprintf(stderr, "Shader compilation failed:\n%s\n", log);
+        LOGE("Shader compilation failed:\n%s\n", log);
         free(log);
         glDeleteShader(shader);
         return 0;
@@ -132,7 +134,7 @@ GLuint RectanglesRenderer::createProgram() {
         glGetProgramiv(program, GL_INFO_LOG_LENGTH, &logLength);
         char* log = (char*)malloc(logLength);
         glGetProgramInfoLog(program, logLength, nullptr, log);
-        fprintf(stderr, "Program linking failed:\n%s\n", log);
+        LOGE("Program linking failed:\n%s\n", log);
         free(log);
         glDeleteProgram(program);
         program = 0;
@@ -142,6 +144,8 @@ GLuint RectanglesRenderer::createProgram() {
     glDeleteShader(vertexShader);
     glDetachShader(program, fragmentShader);
     glDeleteShader(fragmentShader);
+
+    LOGI("program=%d\n", program);
 
     return program;
 }

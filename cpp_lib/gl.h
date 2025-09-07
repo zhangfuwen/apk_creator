@@ -6,6 +6,7 @@
 #include <GLES3/gl32.h>
 
 #include "rectangles_renderer.h"
+#include "log.h"
 
 namespace renderer_2d {
     struct Point {
@@ -51,7 +52,7 @@ namespace renderer_2d {
             position.x = std::clamp(position.x, 0.0f, 1.0f);
             position.y = std::clamp(position.y, 0.0f, 1.0f);
 
-            LOGI("new position, x:%f, y:%f", position.x, position.y);
+            LOGV("new position, x:%f, y:%f", position.x, position.y);
         }
 
       private:
@@ -100,7 +101,7 @@ namespace renderer_2d {
         void addRectangle(std::shared_ptr<Rectangle> rect) { rectangles.push_back(rect); }
 
         void update() {
-            LOGI("update");
+            LOGV("update");
             for(auto &rect : rectangles) {
                 rect->update();
             }

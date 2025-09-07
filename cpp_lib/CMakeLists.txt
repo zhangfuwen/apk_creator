@@ -33,6 +33,7 @@ set(CMAKE_SHARED_LINKER_FLAGS
 # Main native library
 add_library(main SHARED main.cpp
     rectangles_renderer.cpp
+    eye_renderer.cpp
 )
 set_target_properties(main PROPERTIES LINKER_LANGUAGE CXX)
 target_include_directories(

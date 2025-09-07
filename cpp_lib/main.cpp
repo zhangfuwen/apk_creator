@@ -14,11 +14,11 @@
 #include <android/permission_manager.h>
 
 #include <dlfcn.h>
+#include "eye_renderer.h"
 
-#define LOG_TAG   "NativeOpenGL"
-#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
+#include "log.h"
+#include "util.h"
 
-#define LOG_LINE() __android_log_print(ANDROID_LOG_INFO, LOG_TAG, "%s:%d", __FILE__, __LINE__)
 #include "gl.h"
 
 using TestFunc = void (*)(void);
@@ -55,15 +55,113 @@ void link_rust() {
     return;
 }
 
-renderer_2d::Scene* scene;
-
 struct Engine {
     android_app*   app;
     ANativeWindow* window;
     EGLDisplay     display;
     EGLSurface     surface;
     EGLContext     context;
-    bool           initialized;
+
+    renderer_2d::Scene* scene;
+    EyeRenderer*        eye_renderer;
+    bool                initialized;
+
+    void compileProgromOnce() {
+        if (scene == nullptr) {
+            scene = new renderer_2d::Scene();
+            scene->addRectangle(std::make_shared<renderer_2d::Rectangle>(0, 0, 0.2, 0.2));
+            scene->addRectangle(std::make_shared<renderer_2d::Rectangle>(0.5, 0.5, 0.2, 0.2));
+            scene->addRectangle(std::make_shared<renderer_2d::Rectangle>(0.8, 0.8, 0.2, 0.2));
+            eye_renderer = new EyeRenderer();
+            //eye_renderer->resize(800, 600);
+        }
+    }
+
+    uint64_t last_update_time = 0;
+
+    void update() {
+        uint64_t now = get_time_millis();
+        auto     delta_time = now - last_update_time;
+        eye_renderer->update((float)delta_time / 1000.0f);
+        if (now - last_update_time > 3000) {
+            //             change_color();
+            last_update_time = now;
+            eye_renderer->playBlink();
+        }
+        scene->update();
+    }
+
+    // Render loop: clear screen to blue
+    void draw() {
+        if (!initialized)
+            return;
+
+        //glClearColor(g_color.r, g_color.g, g_color.b, g_color.a);
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+//        scene->draw();
+        eye_renderer->render();
+        eglSwapBuffers(display, surface);
+    }
+
+    bool init_display() {
+        // Setup EGL
+        display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+        eglInitialize(display, 0, 0);
+
+        // Choose config (RGB 565, depth 16)
+        const EGLint attribs[] = {EGL_RENDERABLE_TYPE,
+                                  EGL_OPENGL_ES2_BIT,
+                                  EGL_SURFACE_TYPE,
+                                  EGL_WINDOW_BIT,
+                                  EGL_BLUE_SIZE,
+                                  8,
+                                  EGL_GREEN_SIZE,
+                                  8,
+                                  EGL_RED_SIZE,
+                                  8,
+                                  EGL_DEPTH_SIZE,
+                                  16,
+                                  EGL_NONE};
+
+        EGLint    numConfigs;
+        EGLConfig config;
+        eglChooseConfig(display, attribs, &config, 1, &numConfigs);
+
+        // Create EGL context
+        const EGLint context_attribs[] = {EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE};
+        context = eglCreateContext(display, config, nullptr, context_attribs);
+
+        // Create surface
+        surface = eglCreateWindowSurface(display, config, window, nullptr);
+
+        // Make current
+        if (eglMakeCurrent(display, surface, surface, context) == EGL_FALSE) {
+            LOGI("Failed to eglMakeCurrent");
+            return false;
+        }
+
+        LOGI("OpenGL ES initialized");
+        initialized = true;
+        return true;
+    }
+
+    // Terminate EGL
+    void terminate_display() {
+        if (display != EGL_NO_DISPLAY) {
+            eglMakeCurrent(display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+            if (context != EGL_NO_CONTEXT) {
+                eglDestroyContext(display, context);
+            }
+            if (surface != EGL_NO_SURFACE) {
+                eglDestroySurface(display, surface);
+            }
+            eglTerminate(display);
+            display = EGL_NO_DISPLAY;
+            context = EGL_NO_CONTEXT;
+            surface = EGL_NO_SURFACE;
+        }
+    }
 };
 struct android_app* gapp = nullptr;
 
@@ -79,83 +177,6 @@ void change_color() {
     g_color.b = (float)rand() / (float)RAND_MAX;
 }
 
-uint64_t get_time_millis() {
-    struct timespec ts;
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    return ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
-}
-
-// Initialize EGL
-bool engine_init_display(Engine* engine) {
-    // Setup EGL
-    engine->display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
-    eglInitialize(engine->display, 0, 0);
-
-    // Choose config (RGB 565, depth 16)
-    const EGLint attribs[] = {EGL_RENDERABLE_TYPE,
-                              EGL_OPENGL_ES2_BIT,
-                              EGL_SURFACE_TYPE,
-                              EGL_WINDOW_BIT,
-                              EGL_BLUE_SIZE,
-                              8,
-                              EGL_GREEN_SIZE,
-                              8,
-                              EGL_RED_SIZE,
-                              8,
-                              EGL_DEPTH_SIZE,
-                              16,
-                              EGL_NONE};
-
-    EGLint    numConfigs;
-    EGLConfig config;
-    eglChooseConfig(engine->display, attribs, &config, 1, &numConfigs);
-
-    // Create EGL context
-    const EGLint context_attribs[] = {EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE};
-    engine->context = eglCreateContext(engine->display, config, nullptr, context_attribs);
-
-    // Create surface
-    engine->surface = eglCreateWindowSurface(engine->display, config, engine->window, nullptr);
-
-    // Make current
-    if (eglMakeCurrent(engine->display, engine->surface, engine->surface, engine->context) == EGL_FALSE) {
-        LOGI("Failed to eglMakeCurrent");
-        return false;
-    }
-
-    LOGI("OpenGL ES initialized");
-    engine->initialized = true;
-    return true;
-}
-
-// Render loop: clear screen to blue
-void engine_draw(Engine* engine) {
-    if (!engine->initialized)
-        return;
-
-    glClearColor(g_color.r, g_color.g, g_color.b, g_color.a);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    scene->draw();
-    eglSwapBuffers(engine->display, engine->surface);
-}
-
-// Terminate EGL
-void engine_term_display(Engine* engine) {
-    if (engine->display != EGL_NO_DISPLAY) {
-        eglMakeCurrent(engine->display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
-        if (engine->context != EGL_NO_CONTEXT) {
-            eglDestroyContext(engine->display, engine->context);
-        }
-        if (engine->surface != EGL_NO_SURFACE) {
-            eglDestroySurface(engine->display, engine->surface);
-        }
-        eglTerminate(engine->display);
-        engine->display = EGL_NO_DISPLAY;
-        engine->context = EGL_NO_CONTEXT;
-        engine->surface = EGL_NO_SURFACE;
-    }
-}
-
 // Handle commands from main thread
 void engine_handle_cmd(android_app* app, int32_t cmd) {
     Engine* engine = (Engine*)app->userData;
@@ -167,12 +188,12 @@ void engine_handle_cmd(android_app* app, int32_t cmd) {
         case APP_CMD_INIT_WINDOW:
             if (engine->app->window != nullptr) {
                 engine->window = engine->app->window;
-                engine_init_display(engine);
+                engine->init_display();
             }
             break;
 
         case APP_CMD_TERM_WINDOW:
-            engine_term_display(engine);
+            engine->terminate_display();
             engine->window = nullptr;
             break;
 
@@ -183,20 +204,20 @@ void engine_handle_cmd(android_app* app, int32_t cmd) {
 }
 
 void HandleKey(int keycode, int bDown) {
-    LOGI("Key: code %d (down:%d)\n", keycode, bDown);
+    LOGV("Key: code %d (down:%d)\n", keycode, bDown);
     //	if( keycode == 4 ) { AndroidSendToBack( 1 ); }
 }
 
 void HandleButton(int x, int y, int button, int bDown) {
-    LOGI("Button(x:%d, y:%d, button:%d, bDown:%d)\n", x, y, button, bDown);
+    LOGV("Button(x:%d, y:%d, button:%d, bDown:%d)\n", x, y, button, bDown);
 }
 
 void HandleMotion(int x, int y, int mask) {
-    LOGI("Motion: %d,%d (%d)\n", x, y, mask);
+    LOGV("Motion: %d,%d (%d)\n", x, y, mask);
 }
 
 int32_t handle_input(struct android_app* app, AInputEvent* event) {
-    LOGI("handle_input\n");
+    LOGV("handle_input\n");
 #ifdef ANDROID
     //Potentially do other things here.
 
@@ -494,26 +515,16 @@ void android_main(struct android_app* state) {
             }
 
             if (state->destroyRequested != 0) {
-                engine_term_display(&engine);
+                engine.terminate_display();
                 return;
             }
         }
 
         // Only draw if initialized
         if (engine.initialized) {
-            if (scene == nullptr) {
-                scene = new renderer_2d::Scene();
-                scene->addRectangle(std::make_shared<renderer_2d::Rectangle>(0, 0, 0.2, 0.2));
-                scene->addRectangle(std::make_shared<renderer_2d::Rectangle>(0.5, 0.5, 0.2, 0.2));
-                scene->addRectangle(std::make_shared<renderer_2d::Rectangle>(0.8, 0.8, 0.2, 0.2));
-            }
-            uint64_t now = get_time_millis();
-            if (now - update_time > 1000) {
-                change_color();
-                update_time = now;
-                scene->update();
-            }
-            engine_draw(&engine);
+            engine.compileProgromOnce();
+            engine.update();
+            engine.draw();
         }
 
         // Throttle loop (optional)
