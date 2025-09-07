@@ -36,8 +36,9 @@ public:
     void render();
 
     // Animation control
-    //void playBlink(float duration = 0.3f);
-    void playBlink(float duration = 2.0f);
+    void playBlink(float scale = 1.0f);
+    void playSleepy(float scale = 1.0f);
+    void playMouth();
     void setWrinkle(float strength);
     void enableIdle(bool enabled);
 
@@ -54,6 +55,8 @@ private:
     };
 
     AnimPlayer blinkPlayer;
+    AnimPlayer sleepyPlayer;
+    AnimPlayer mouthPlayer;
     float wrinkleLevel = 0.0f;
     bool idleEnabled = true;
 
@@ -90,6 +93,9 @@ private:
     void drawPupil(const Eye& eye, float idleOffset);
     void drawEyelid(const Eye& eye, float blink);
     void drawWrinkles(const Eye& eye, float wrinkle);
+
+    void drawMouth(float t, float smileFactor, float openFactor);
+
 };
 
 #endif // EYE_RENDERER_H

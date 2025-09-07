@@ -77,17 +77,27 @@ struct Engine {
         }
     }
 
-    uint64_t last_update_time = 0;
+    double last_update_time = 0.0f;
+    double last_animation_time = 0.0f;
 
     void update() {
-        uint64_t now = get_time_millis();
-        auto     delta_time = now - last_update_time;
-        eye_renderer->update((float)delta_time / 1000.0f);
-        if (now - last_update_time > 3000) {
-            //             change_color();
-            last_update_time = now;
-            eye_renderer->playBlink();
+        auto now = get_time_second();
+
+        double delta_time_second = now - last_update_time;
+        last_update_time = now;
+        // if (delta_time_second > 0.1f) {
+        //     LOGE("delta_time_second: %f", delta_time_second);
+        // }
+        if (now - last_animation_time > 5.0f) {
+            last_animation_time = now;
+            if(rand()%2 == 0) {
+                eye_renderer->playBlink(1.0f);
+            } else {
+                eye_renderer->playSleepy(3.0f);
+            }
+            eye_renderer->playMouth();
         }
+        eye_renderer->update((float)delta_time_second);
         scene->update();
     }
 
@@ -99,7 +109,7 @@ struct Engine {
         //glClearColor(g_color.r, g_color.g, g_color.b, g_color.a);
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-//        scene->draw();
+        //        scene->draw();
         eye_renderer->render();
         eglSwapBuffers(display, surface);
     }
