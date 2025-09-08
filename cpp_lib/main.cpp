@@ -14,12 +14,12 @@
 #include <android/permission_manager.h>
 
 #include <dlfcn.h>
-#include "eye_renderer.h"
+#include "renderer/eye_renderer.h"
+#include "renderer/gl.h"
 
 #include "ndk_utils/log.h"
-#include "util.h"
+#include "ndk_utils/util.h"
 
-#include "gl.h"
 
 #include "audio/OboeEngine.h"
 

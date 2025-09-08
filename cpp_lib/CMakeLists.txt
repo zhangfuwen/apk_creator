@@ -18,7 +18,6 @@ find_library(EGL-lib EGL)
 find_library(GLESv3-lib GLESv3)
 find_library(OpenSLES-lib OpenSLES)
 
-
 # Build native_app_glue (required for NativeActivity) build native_app_glue as a
 # static lib
 set(${CMAKE_C_FLAGS}, "${CMAKE_C_FLAGS}")
@@ -32,23 +31,22 @@ add_library(
 set(CMAKE_SHARED_LINKER_FLAGS
     "${CMAKE_SHARED_LINKER_FLAGS} -u ANativeActivity_onCreate")
 
-set(OBOE_ENABLE_OPENSL OFF CACHE BOOL "Enable OpenSL ES backend")
+set(OBOE_ENABLE_OPENSL
+    OFF
+    CACHE BOOL "Enable OpenSL ES backend")
 
 set(OBOE_INCLUDE_DIR ${VCPKG_ROOT}/installed/arm64-android/include)
 set(OBOE_LINK_DIR ${VCPKG_ROOT}/installed/arm64-android/lib)
 
 # Main native library
-add_library(main SHARED main.cpp rectangles_renderer.cpp eye_renderer.cpp
-    audio/OboeEngine.cpp
-    audio/LatencyTuningCallback.cpp
-    audio/SoundGenerator.cpp
-)
+add_library(
+  main SHARED
+  main.cpp renderer/rectangles_renderer.cpp renderer/eye_renderer.cpp
+  audio/OboeEngine.cpp audio/LatencyTuningCallback.cpp audio/SoundGenerator.cpp)
 set_target_properties(main PROPERTIES LINKER_LANGUAGE CXX)
 target_include_directories(
   main PRIVATE ${CMAKE_ANDROID_NDK}/sources/android/native_app_glue
-               ${OBOE_INCLUDE_DIR}
-               ${CMAKE_SOURCE_DIR}
-           )
+               ${OBOE_INCLUDE_DIR} ${CMAKE_SOURCE_DIR})
 target_link_directories(main PRIVATE ${OBOE_LINK_DIR})
 
 # Link libraries
@@ -61,5 +59,4 @@ target_link_libraries(
   ${android-lib}
   ${EGL-lib}
   ${GLESv3-lib}
-  ${OpenSLES-lib}
-)
+  ${OpenSLES-lib})
