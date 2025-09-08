@@ -2,6 +2,7 @@
 #include <oboe/Oboe.h>
 
 #include "SoundGenerator.h"
+#include "Mp3SoundGenerator.h"
 #include "LatencyTuningCallback.h"
 #include "IRestartable.h"
 #include "DefaultErrorCallback.h"
@@ -9,13 +10,28 @@
 constexpr int32_t kBufferSizeAutomatic = 0;
 
 class OboeEngine : public IRestartable {
-
-public:
+  public:
     OboeEngine();
 
     virtual ~OboeEngine() = default;
 
     void tap(bool isDown);
+    void playMp3(uint8_t* data, int size) {
+        mMp3Data = data;
+        mMp3Size = size;
+
+        if (mMp3AudioSource == nullptr) {
+            auto result = Mp3SoundGenerator::createFromBuf((char*)mMp3Data, mMp3Size);
+            if (result.error() == oboe::Result::OK) {
+                mMp3AudioSource = result.value();
+            } else {
+                LOGE("Failed to create Mp3SoundGenerator: %s", oboe::convertToText(result.error()));
+            }
+        } else {
+            mMp3AudioSource->resetData((char*)mMp3Data, mMp3Size);
+        }
+
+    }
 
     /**
      * Open and start a stream.
@@ -31,6 +47,7 @@ public:
      * Stop and close the stream.
      */
     oboe::Result stop();
+
 
     // From IRestartable
     void restart() override;
@@ -58,15 +75,19 @@ public:
 
     bool isAAudioRecommended();
 
-private:
+  private:
     oboe::Result reopenStream();
     oboe::Result openPlaybackStream();
 
-    std::shared_ptr<oboe::AudioStream> mStream;
+    std::shared_ptr<oboe::AudioStream>     mStream;
     std::shared_ptr<LatencyTuningCallback> mLatencyCallback;
-    std::shared_ptr<DefaultErrorCallback> mErrorCallback;
-    std::shared_ptr<SoundGenerator> mAudioSource;
-    bool mIsLatencyDetectionSupported = false;
+    std::shared_ptr<DefaultErrorCallback>  mErrorCallback;
+    std::shared_ptr<SoundGenerator>        mAudioSource;
+    std::shared_ptr<Mp3SoundGenerator>     mMp3AudioSource;
+    bool                                   mIsLatencyDetectionSupported = false;
+
+    uint8_t* mMp3Data = nullptr;
+    int      mMp3Size = 0;
 
     int32_t        mDeviceId = oboe::Unspecified;
     int32_t        mChannelCount = oboe::Unspecified;

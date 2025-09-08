@@ -1,12 +1,17 @@
+#define DR_MP3_IMPLEMENTATION 
+#include <android/asset_manager.h>
 #include <android/input.h>
 #include <android_native_app_glue.h>
 #include <EGL/egl.h>
 #include <GLES2/gl2.h>
 #include <android/log.h>
 #include <android/native_window.h>
+#include <cstddef>
 #include <unistd.h>
 #include <stdlib.h>  // for srand and rand
 #include <stdint.h>
+#include <tuple>
+#include <memory>
 
 #include <jni.h>
 #include <android/native_activity.h>
@@ -63,7 +68,7 @@ struct Engine {
     EGLDisplay     display;
     EGLSurface     surface;
     EGLContext     context;
-    OboeEngine oboeEngine;
+    OboeEngine     oboeEngine;
 
     renderer_2d::Scene* scene;
     EyeRenderer*        eye_renderer;
@@ -93,8 +98,9 @@ struct Engine {
         // }
         if (now - last_animation_time > 5.0f) {
             oboeEngine.tap(true);
+            playMp3();
             last_animation_time = now;
-            if(rand()%2 == 0) {
+            if (rand() % 2 == 0) {
                 eye_renderer->playBlink(1.0f);
             } else {
                 eye_renderer->playSleepy(3.0f);
@@ -116,6 +122,21 @@ struct Engine {
         //        scene->draw();
         eye_renderer->render();
         eglSwapBuffers(display, surface);
+    }
+    void assetTest() {
+        auto [text, text_size] = readAsset("assets/test.txt");
+        LOGI("asset text(size %z): %s", text_size, (char*)text.get());
+    }
+
+    void playMp3() {
+        if (std::get<0>(mp3Data) == nullptr) {
+            mp3Data = readAsset("assets/test.mp3");
+            if (std::get<0>(mp3Data) == nullptr) {
+                LOGE("Failed to read asset: %s", "test.mp3");
+                return;
+            }
+        }
+        oboeEngine.playMp3((uint8_t*)std::get<0>(mp3Data).get(),std::get<1>(mp3Data)); 
     }
 
     bool init_display() {
@@ -176,6 +197,25 @@ struct Engine {
             surface = EGL_NO_SURFACE;
         }
     }
+
+  private:
+    std::tuple<std::shared_ptr<uint8_t>, size_t> readAsset(std::string filepath) {
+        AAsset* asset = AAssetManager_open(app->activity->assetManager, filepath.c_str(), AASSET_MODE_STREAMING);
+        if (asset == nullptr) {
+            LOGE("Failed to open asset: %s", filepath.c_str());
+            return {nullptr, 0};
+        }
+        size_t size = AAsset_getLength(asset);
+        auto   buf = std::make_shared<uint8_t>(size);
+        auto   readCount = AAsset_read(asset, buf.get(), size);
+        if (readCount != size) {
+            LOGE("Failed to read asset: %s", filepath.c_str());
+            return {nullptr, 0};
+        }
+        AAsset_close(asset);
+        return {buf, size};
+    }
+    std::tuple<std::shared_ptr<uint8_t>, size_t> mp3Data = {nullptr, 0};
 };
 struct android_app* gapp = nullptr;
 
@@ -203,6 +243,7 @@ void engine_handle_cmd(android_app* app, int32_t cmd) {
             if (engine->app->window != nullptr) {
                 engine->window = engine->app->window;
                 engine->init_display();
+                engine->playMp3();
                 engine->oboeEngine.start();
             }
             break;

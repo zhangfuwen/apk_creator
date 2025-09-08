@@ -23,17 +23,20 @@ find_library(OpenSLES-lib OpenSLES)
 set(${CMAKE_C_FLAGS}, "${CMAKE_C_FLAGS}")
 add_library(
   native_app_glue STATIC
-  ${ANDROID_NDK}/sources/android/native_app_glue/android_native_app_glue.c)
+  ${ANDROID_NDK}/sources/android/native_app_glue/android_native_app_glue.c
+)
 # set_target_properties(native_app_glue PROPERTIES LINKER_LANGUAGE CXX)
 # set_target_properties(native_app_glue PROPERTIES COMPILE_FLAGS
 # "-Wno-error=unused-parameter")
 
 set(CMAKE_SHARED_LINKER_FLAGS
-    "${CMAKE_SHARED_LINKER_FLAGS} -u ANativeActivity_onCreate")
+    "${CMAKE_SHARED_LINKER_FLAGS} -u ANativeActivity_onCreate"
+)
 
 set(OBOE_ENABLE_OPENSL
     OFF
-    CACHE BOOL "Enable OpenSL ES backend")
+    CACHE BOOL "Enable OpenSL ES backend"
+)
 
 set(OBOE_INCLUDE_DIR ${VCPKG_ROOT}/installed/arm64-android/include)
 set(OBOE_LINK_DIR ${VCPKG_ROOT}/installed/arm64-android/lib)
@@ -41,12 +44,14 @@ set(OBOE_LINK_DIR ${VCPKG_ROOT}/installed/arm64-android/lib)
 # Main native library
 add_library(
   main SHARED
-  main.cpp renderer/rectangles_renderer.cpp renderer/eye_renderer.cpp
-  audio/OboeEngine.cpp audio/LatencyTuningCallback.cpp audio/SoundGenerator.cpp)
+  audio/LatencyTuningCallback.cpp audio/OboeEngine.cpp audio/SoundGenerator.cpp
+  main.cpp renderer/eye_renderer.cpp renderer/rectangles_renderer.cpp
+)
 set_target_properties(main PROPERTIES LINKER_LANGUAGE CXX)
 target_include_directories(
   main PRIVATE ${CMAKE_ANDROID_NDK}/sources/android/native_app_glue
-               ${OBOE_INCLUDE_DIR} ${CMAKE_SOURCE_DIR})
+               ${OBOE_INCLUDE_DIR} ${CMAKE_SOURCE_DIR}
+)
 target_link_directories(main PRIVATE ${OBOE_LINK_DIR})
 
 # Link libraries
@@ -59,4 +64,5 @@ target_link_libraries(
   ${android-lib}
   ${EGL-lib}
   ${GLESv3-lib}
-  ${OpenSLES-lib})
+  ${OpenSLES-lib}
+)
