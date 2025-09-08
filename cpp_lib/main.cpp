@@ -16,10 +16,12 @@
 #include <dlfcn.h>
 #include "eye_renderer.h"
 
-#include "log.h"
+#include "ndk_utils/log.h"
 #include "util.h"
 
 #include "gl.h"
+
+#include "audio/OboeEngine.h"
 
 using TestFunc = void (*)(void);
 TestFunc rust_test_func;
@@ -61,6 +63,7 @@ struct Engine {
     EGLDisplay     display;
     EGLSurface     surface;
     EGLContext     context;
+    OboeEngine oboeEngine;
 
     renderer_2d::Scene* scene;
     EyeRenderer*        eye_renderer;
@@ -89,6 +92,7 @@ struct Engine {
         //     LOGE("delta_time_second: %f", delta_time_second);
         // }
         if (now - last_animation_time > 5.0f) {
+            oboeEngine.tap(true);
             last_animation_time = now;
             if(rand()%2 == 0) {
                 eye_renderer->playBlink(1.0f);
@@ -199,11 +203,13 @@ void engine_handle_cmd(android_app* app, int32_t cmd) {
             if (engine->app->window != nullptr) {
                 engine->window = engine->app->window;
                 engine->init_display();
+                engine->oboeEngine.start();
             }
             break;
 
         case APP_CMD_TERM_WINDOW:
             engine->terminate_display();
+            engine->oboeEngine.stop();
             engine->window = nullptr;
             break;
 
@@ -480,6 +486,7 @@ void android_main(struct android_app* state) {
     engine.app->onAppCmd = engine_handle_cmd;
     engine.app->onInputEvent = handle_input;
     gapp = state;
+
 
     AndroidMakeFullscreen();
     link_rust();

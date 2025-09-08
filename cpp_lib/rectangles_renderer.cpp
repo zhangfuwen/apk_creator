@@ -10,7 +10,7 @@
 #include <GLES3/gl3ext.h>
 #include <GLES3/gl3platform.h>
 
-#include "log.h"
+#include "ndk_utils/log.h"
 
 namespace renderer_2d {
     

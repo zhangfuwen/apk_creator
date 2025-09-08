@@ -6,7 +6,7 @@
 #include <GLES3/gl32.h>
 
 #include "rectangles_renderer.h"
-#include "log.h"
+#include "ndk_utils/log.h"
 
 namespace renderer_2d {
     struct Point {

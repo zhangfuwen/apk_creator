@@ -1,9 +1,8 @@
 #include "eye_renderer.h"
 #include <GLES2/gl2.h>
 #include <stdlib.h>
-#include <time.h>
 
-#include "log.h"
+#include "ndk_utils/log.h"
 
 // Random float in [-r, r]
 static float jitter(float r) {
