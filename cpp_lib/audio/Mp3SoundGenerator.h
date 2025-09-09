@@ -7,7 +7,7 @@
 #include "oboe/Oboe.h"
 
 class Mp3SoundGenerator : public TappableAudioSource {
-    static constexpr size_t kSharedBufferSize = 1024;
+    static constexpr size_t kSharedBufferSize = 1024*1024;
 
   public:
     static oboe::ResultWithValue<std::shared_ptr<Mp3SoundGenerator>> createFromFile(std::string filepath) {
@@ -45,6 +45,7 @@ class Mp3SoundGenerator : public TappableAudioSource {
     }
 
     int resetData(char* buf, int size) {
+        LOGI("Reset MP3 data");
         std::lock_guard<std::mutex> lock(mMutex);
         if (!drmp3_init_memory(&mMp3, buf, size, nullptr)) {
             LOGE("Failed to open MP3");
@@ -65,15 +66,16 @@ class Mp3SoundGenerator : public TappableAudioSource {
     void tap(bool isOn) override { }
 
     void renderAudio(float* audioData, int32_t numFrames) override {
+        LOGI("renderAudio numFrames %d", numFrames);
         std::lock_guard<std::mutex> lock(mMutex);
         std::fill_n(mBuffer.get(), kSharedBufferSize, 0);
         for (int i = 0; i < mChannelCount; ++i) {
             auto ret = drmp3_read_pcm_frames_f32(&mMp3, numFrames, mBuffer.get());
-            if (ret < 0) {
+            if (ret <= 0) {
                 LOGE("Decode failed");
                 std::fill_n(mBuffer.get(), kSharedBufferSize, 0);
             }
-            for (int j = 0; j < numFrames; ++j) {
+            for (int j = 0; j < ret; ++j) {
                 audioData[(j * mChannelCount) + i] = mBuffer[j];
             }
         }

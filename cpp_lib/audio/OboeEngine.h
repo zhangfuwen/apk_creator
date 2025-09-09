@@ -17,18 +17,18 @@ class OboeEngine : public IRestartable {
 
     void tap(bool isDown);
     void playMp3(uint8_t* data, int size) {
-        mMp3Data = data;
-        mMp3Size = size;
+         mMp3Data = data;
+         mMp3Size = size;
 
         if (mMp3AudioSource == nullptr) {
             auto result = Mp3SoundGenerator::createFromBuf((char*)mMp3Data, mMp3Size);
             if (result.error() == oboe::Result::OK) {
-                mMp3AudioSource = result.value();
+               mMp3AudioSource = result.value();
             } else {
                 LOGE("Failed to create Mp3SoundGenerator: %s", oboe::convertToText(result.error()));
             }
         } else {
-            mMp3AudioSource->resetData((char*)mMp3Data, mMp3Size);
+           mMp3AudioSource->resetData((char*)mMp3Data, mMp3Size);
         }
 
     }
@@ -79,11 +79,11 @@ class OboeEngine : public IRestartable {
     oboe::Result reopenStream();
     oboe::Result openPlaybackStream();
 
-    std::shared_ptr<oboe::AudioStream>     mStream;
-    std::shared_ptr<LatencyTuningCallback> mLatencyCallback;
-    std::shared_ptr<DefaultErrorCallback>  mErrorCallback;
-    std::shared_ptr<SoundGenerator>        mAudioSource;
-    std::shared_ptr<Mp3SoundGenerator>     mMp3AudioSource;
+    std::shared_ptr<oboe::AudioStream>     mStream = nullptr;
+    std::shared_ptr<LatencyTuningCallback> mLatencyCallback = nullptr;
+    std::shared_ptr<DefaultErrorCallback>  mErrorCallback = nullptr;
+    std::shared_ptr<SoundGenerator>        mAudioSource = nullptr;
+    std::shared_ptr<Mp3SoundGenerator>     mMp3AudioSource = nullptr;
     bool                                   mIsLatencyDetectionSupported = false;
 
     uint8_t* mMp3Data = nullptr;

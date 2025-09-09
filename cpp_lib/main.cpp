@@ -97,7 +97,7 @@ struct Engine {
         //     LOGE("delta_time_second: %f", delta_time_second);
         // }
         if (now - last_animation_time > 5.0f) {
-            oboeEngine.tap(true);
+ //           oboeEngine.tap(true);
             playMp3();
             last_animation_time = now;
             if (rand() % 2 == 0) {
@@ -124,19 +124,19 @@ struct Engine {
         eglSwapBuffers(display, surface);
     }
     void assetTest() {
-        auto [text, text_size] = readAsset("assets/test.txt");
-        LOGI("asset text(size %z): %s", text_size, (char*)text.get());
+        auto [text, text_size] = readAsset("test.txt");
+        LOGI("asset text(size %ld): %s", text_size, (char*)text->data());
     }
 
     void playMp3() {
         if (std::get<0>(mp3Data) == nullptr) {
-            mp3Data = readAsset("assets/test.mp3");
+            mp3Data = readAsset("test.mp3");
             if (std::get<0>(mp3Data) == nullptr) {
                 LOGE("Failed to read asset: %s", "test.mp3");
                 return;
             }
         }
-        oboeEngine.playMp3((uint8_t*)std::get<0>(mp3Data).get(),std::get<1>(mp3Data)); 
+        oboeEngine.playMp3((uint8_t*)std::get<0>(mp3Data)->data(),std::get<1>(mp3Data)); 
     }
 
     bool init_display() {
@@ -199,15 +199,19 @@ struct Engine {
     }
 
   private:
-    std::tuple<std::shared_ptr<uint8_t>, size_t> readAsset(std::string filepath) {
-        AAsset* asset = AAssetManager_open(app->activity->assetManager, filepath.c_str(), AASSET_MODE_STREAMING);
+    std::tuple<std::shared_ptr<std::vector<uint8_t>>, size_t> readAsset(std::string filepath) {
+        AAsset* asset = AAssetManager_open(app->activity->assetManager, filepath.c_str(), AASSET_MODE_BUFFER);
         if (asset == nullptr) {
             LOGE("Failed to open asset: %s", filepath.c_str());
             return {nullptr, 0};
         }
         size_t size = AAsset_getLength(asset);
-        auto   buf = std::make_shared<uint8_t>(size);
-        auto   readCount = AAsset_read(asset, buf.get(), size);
+        size_t size2 = AAsset_getRemainingLength(asset);
+        LOGI("size %lu, size2 %lu", size, size2);
+        auto   buf = std::make_shared<std::vector<uint8_t>>(size);
+        LOGI("buf %p, size %d", buf->data(), size);
+        auto   readCount = AAsset_read(asset, buf->data(), size);
+        LOGI("readCount %d", readCount);
         if (readCount != size) {
             LOGE("Failed to read asset: %s", filepath.c_str());
             return {nullptr, 0};
@@ -215,7 +219,7 @@ struct Engine {
         AAsset_close(asset);
         return {buf, size};
     }
-    std::tuple<std::shared_ptr<uint8_t>, size_t> mp3Data = {nullptr, 0};
+    std::tuple<std::shared_ptr<std::vector<uint8_t>>, size_t> mp3Data = {nullptr, 0};
 };
 struct android_app* gapp = nullptr;
 
