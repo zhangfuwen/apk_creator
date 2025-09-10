@@ -1,40 +1,10 @@
+download_tools=0
+if [[ $# -eq 1 ]] && [[  "$1" == "-d" ]]; then
+    download_tools=1
+fi
 
-# Android Apk构建与拆解
+echo "## Set environment variables:"
 
-## 总体流程
-
-总体流程涉及五个工具，也即5个步骤：
-
-```bash
-javac – compile Java code
-d8 – convert .class to .dex (Google's DEX compiler)
-aapt2 – compile and link resources
-zipalign – align the APK
-apksigner – sign the APK
-```
-
-
-## 工程准备
-
-```
-MyApp/
-├── src/
-│   └── com/example/app/MainActivity.java
-├── res/
-│   └── values/
-│       └── strings.xml
-│   └── layout/
-│       └── activity_main.xml
-├── AndroidManifest.xml
-└── build/
-```
-
-
-## Download build tools
-
-Set environment variables:
-
-```bash
 export NDK_VERSION="27.3.13750724"
 export PLATFORM_VERSION="android-34"
 export CMAKE_VERSION="3.10.2.4988404"
@@ -47,63 +17,48 @@ export ANDROID_SDK=$ANDROID_HOME
 
 echo "ANDROID_HOME=$ANDROID_HOME"
 
-```
 
-Download build tools:
+echo "## Download build tools:"
 
-```bash
+if [[ "$download_tools" == "1" ]]; then
+    echo "Downloading build tools: $download_tools"
+    export URL_CLITOOLS=https://dl.google.com/android/repository/commandlinetools-linux-6200805_latest.zip
+    export TMPFILE="$HOME/temp.zip"
+    [[ -d $ANDROID_HOME ]] || mkdir -p $ANDROID_HOME && wget --quiet ${URL_CLITOOLS} -O ${TMPFILE} \
+        && unzip -d ${ANDROID_HOME} ${TMPFILE} \
+        && rm ${TMPFILE}
 
-export URL_CLITOOLS=https://dl.google.com/android/repository/commandlinetools-linux-6200805_latest.zip
-export TMPFILE="$HOME/temp.zip"
-[[ -d $ANDROID_HOME ]] || mkdir -p $ANDROID_HOME && wget --quiet ${URL_CLITOOLS} -O ${TMPFILE} \
-    && unzip -d ${ANDROID_HOME} ${TMPFILE} \
-    && rm ${TMPFILE}
-```
+    yes | $ANDROID_HOME/tools/bin/sdkmanager --sdk_root=${ANDROID_HOME} --licenses \
+        && $ANDROID_HOME/tools/bin/sdkmanager --sdk_root=${ANDROID_HOME} "build-tools;${BUILD_TOOLS_VERSION}" "cmake;${CMAKE_VERSION}" "ndk;${NDK_VERSION}" "platform-tools" "platforms;${PLATFORM_VERSION}" "tools"
 
-Install SDK, NDK and other tools:
+fi
 
-```bash
+echo "# Compile java code"
 
-yes | $ANDROID_HOME/tools/bin/sdkmanager --sdk_root=${ANDROID_HOME} --licenses \
-    && $ANDROID_HOME/tools/bin/sdkmanager --sdk_root=${ANDROID_HOME} "build-tools;${BUILD_TOOLS_VERSION}" "cmake;${CMAKE_VERSION}" "ndk;${NDK_VERSION}" "platform-tools" "platforms;${PLATFORM_VERSION}" "tools"
-```
-
-## Compile java code
-
-```bash
 mkdir -p build/classes
 javac -source 1.7 -target 1.7 \
   -bootclasspath $ANDROID_HOME/platforms/${PLATFORM_VERSION}/android.jar \
   -d build/classes \
   src/com/example/app/*.java
 
-```
 
-## Convert .class → .dex using D8
+echo "## Convert .class → .dex using D8"
 
-```bash
 mkdir -p build/dex
 find build/classes -name "*.class" -print0 | xargs -0 $ANDROID_HOME/build-tools/${BUILD_TOOLS_VERSION}/d8 \
   --lib $ANDROID_HOME/platforms/android-34/android.jar \
   --output build/dex
-```
 
-## Using aapt2 to compile and link resources
+echo "## Compile Resources with aapt2"
 
-### Compile Resources with aapt2
-
-```bash
 mkdir -p build/res-compiled
 
 $ANDROID_HOME/build-tools/${BUILD_TOOLS_VERSION}/aapt2 compile \
   --dir res \
   -o build/res-compiled/
 
-```
+echo "## Link resources into resources.arsc and final APK"
 
-### Link resources into resources.arsc and final APK
-
-```bash
 mkdir -p build/apk
 
 $ANDROID_HOME/build-tools/${BUILD_TOOLS_VERSION}/aapt2 link \
@@ -117,32 +72,24 @@ $ANDROID_HOME/build-tools/${BUILD_TOOLS_VERSION}/aapt2 link \
   --package-id 0x7f \
   build/res-compiled/*.flat
 
-```
+echo "## Add DEX file to APK "
 
-## Add DEX file to APK 
-
-```bash
 cd build/dex
 zip -g ../apk/app-unaligned.apk classes.dex
 cd -
-```
 
-## Align the APK with zipalign
+echo "## Align the APK with zipalign"
 
-```bash
 
 $ANDROID_HOME/build-tools/34.0.0/zipalign \
   -f 4 \
   build/apk/app-unaligned.apk \
   build/apk/app-aligned.apk
 
-```
+echo "## Generate a key if you don't have one"
 
-## Sign the APK with apksigner
+if [[ ! -f mykey.jks ]]; then
 
-### Generate a key if you don't have one
-
-```bash
 keytool -genkeypair \
   -alias mykey \
   -keyalg RSA \
@@ -152,22 +99,15 @@ keytool -genkeypair \
   -storepass android \
   -keypass android \
   -dname "CN=,OU=,O=,L=,S=,C=US"
-```
+fi
 
-### Sign the APK
+echo "## Sign the APK"
 
-```bash
 $ANDROID_HOME/build-tools/34.0.0/apksigner sign \
   --key-pass pass:android \
   --ks-pass pass:android \
   --ks mykey.jks \
   --out build/apk/app-signed.apk \
   build/apk/app-aligned.apk
-```
 
-## Install the APK
-
-```bash
-adb install build/apk/app-signed.apk
-```
-
+unzip -l build/apk/app-signed.apk
