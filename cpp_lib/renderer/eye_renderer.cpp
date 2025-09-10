@@ -143,7 +143,7 @@ void EyeRenderer::render() {
     glEnableVertexAttribArray(attribPosition);
 
     if(blinkPlayer.timeScale < 3.0f) {
-        LOGE("blinkPlayer.timeScale: %f", blinkPlayer.timeScale);
+        LOGV("blinkPlayer.timeScale: %f", blinkPlayer.timeScale);
     }
     float blinkValue = 0.0f;
     if (blinkPlayer.state == PLAYING) {

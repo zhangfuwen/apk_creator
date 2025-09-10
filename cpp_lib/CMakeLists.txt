@@ -4,6 +4,7 @@ project("MyNativeApp" LANGUAGES C CXX)
 
 message("CMAKE_VERSION: ${CMAKE_VERSION}")
 message("CMAKE_ANDROID_NDK: ${CMAKE_ANDROID_NDK}")
+message("ANDROID_PLATFORM: ${ANDROID_PLATFORM}")
 
 include_directories(${CMAKE_ANDROID_NDK}/sources/android/native_app_glue)
 include_directories(${CMAKE_ANDROID_NDK}/sources/cxx-stl/llvm-libc++/include)
@@ -17,6 +18,8 @@ find_library(android-lib android)
 find_library(EGL-lib EGL)
 find_library(GLESv3-lib GLESv3)
 find_library(OpenSLES-lib OpenSLES)
+find_library(camera-lib camera2ndk)
+find_library(media-lib mediandk)
 
 # Build native_app_glue (required for NativeActivity) build native_app_glue as a
 # static lib
@@ -53,6 +56,15 @@ target_include_directories(
                ${OBOE_INCLUDE_DIR} ${CMAKE_SOURCE_DIR}
 )
 target_link_directories(main PRIVATE ${OBOE_LINK_DIR})
+# Extract numeric API level from ANDROID_PLATFORM (e.g., android-24 → 24)
+if(ANDROID AND ANDROID_PLATFORM)
+    string(REGEX MATCH "[0-9]+" ANDROID_API_NUM "${ANDROID_PLATFORM}")
+    message(STATUS "Target Android API Level: ${ANDROID_API_NUM}")
+
+    # Define __ANDROID_API__ manually (usually already set)
+    target_compile_definitions(main PRIVATE __ANDROID_API__=${ANDROID_API_NUM})
+
+endif()
 
 # Link libraries
 target_link_libraries(
@@ -65,4 +77,6 @@ target_link_libraries(
   ${EGL-lib}
   ${GLESv3-lib}
   ${OpenSLES-lib}
+  ${camera-lib}
+  ${media-lib}
 )

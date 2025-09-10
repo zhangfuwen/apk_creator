@@ -66,13 +66,13 @@ class Mp3SoundGenerator : public TappableAudioSource {
     void tap(bool isOn) override { }
 
     void renderAudio(float* audioData, int32_t numFrames) override {
-        LOGI("renderAudio numFrames %d", numFrames);
+        LOGV("renderAudio numFrames %d", numFrames);
         std::lock_guard<std::mutex> lock(mMutex);
         std::fill_n(mBuffer.get(), kSharedBufferSize, 0);
         for (int i = 0; i < mChannelCount; ++i) {
             auto ret = drmp3_read_pcm_frames_f32(&mMp3, numFrames, mBuffer.get());
             if (ret <= 0) {
-                LOGE("Decode failed");
+                LOGV("Decode failed");
                 std::fill_n(mBuffer.get(), kSharedBufferSize, 0);
             }
             for (int j = 0; j < ret; ++j) {

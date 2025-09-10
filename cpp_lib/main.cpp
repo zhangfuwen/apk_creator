@@ -15,8 +15,11 @@
 
 #include <jni.h>
 #include <android/native_activity.h>
-
 #include <android/permission_manager.h>
+#include <camera/NdkCameraManager.h>
+#include <camera/NdkCameraDevice.h>
+#include <camera/NdkCameraCaptureSession.h>
+#include <media/NdkImageReader.h>
 
 #include <dlfcn.h>
 #include "renderer/eye_renderer.h"
@@ -27,6 +30,13 @@
 
 
 #include "audio/OboeEngine.h"
+#include "camera/CameraController.hpp"
+
+#define STRINGIFY(x) #x
+#define TOSTRING(x) STRINGIFY(x)
+#define PRINT_MACRO(name) _Pragma(TOSTRING(message(#name " = " TOSTRING(name))))
+
+PRINT_MACRO(__ANDROID_API__)
 
 using TestFunc = void (*)(void);
 TestFunc rust_test_func;
@@ -69,6 +79,7 @@ struct Engine {
     EGLSurface     surface;
     EGLContext     context;
     OboeEngine     oboeEngine;
+    CameraController controller;
 
     renderer_2d::Scene* scene;
     EyeRenderer*        eye_renderer;
@@ -249,6 +260,9 @@ void engine_handle_cmd(android_app* app, int32_t cmd) {
                 engine->init_display();
                 engine->playMp3();
                 engine->oboeEngine.start();
+                if (!engine->controller.openAndCapture("0")) {
+                    LOGE("Failed to open camera");
+                }
             }
             break;
 
@@ -535,6 +549,10 @@ void android_main(struct android_app* state) {
 
     AndroidMakeFullscreen();
     link_rust();
+
+    // Set activity pointer (optional)
+    // controller.mNativeActivity = app->activity;  // if you want to call finish()
+
 
     int32_t  outResult;
     uint32_t pid = 0;
