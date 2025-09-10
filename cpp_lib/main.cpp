@@ -1,4 +1,3 @@
-#define DR_MP3_IMPLEMENTATION 
 #include <android/asset_manager.h>
 #include <android/input.h>
 #include <android_native_app_glue.h>
@@ -10,8 +9,6 @@
 #include <unistd.h>
 #include <stdlib.h>  // for srand and rand
 #include <stdint.h>
-#include <tuple>
-#include <memory>
 
 #include <jni.h>
 #include <android/native_activity.h>
@@ -22,265 +19,23 @@
 #include <media/NdkImageReader.h>
 
 #include <dlfcn.h>
-#include "renderer/eye_renderer.h"
-#include "renderer/gl.h"
-
+#include "camera/camera_engine.h"
 #include "ndk_utils/log.h"
-#include "ndk_utils/util.h"
 
+#include "app_engine.hpp"
+#include "java_helpers/java_helper.hpp"
+#include "rust_helper.hpp"
 
-#include "audio/OboeEngine.h"
-#include "camera/CameraController.hpp"
-
-#define STRINGIFY(x) #x
-#define TOSTRING(x) STRINGIFY(x)
+#define STRINGIFY(x)      #x
+#define TOSTRING(x)       STRINGIFY(x)
 #define PRINT_MACRO(name) _Pragma(TOSTRING(message(#name " = " TOSTRING(name))))
 
-PRINT_MACRO(__ANDROID_API__)
+// PRINT_MACRO(__ANDROID_API__)
 
-using TestFunc = void (*)(void);
-TestFunc rust_test_func;
-
-void link_rust() {
-    // Step 1: Open the shared library
-    void* handle = dlopen("librust_lib.so", RTLD_LAZY);
-    if (!handle) {
-        LOGI("Error loading library: %s", dlerror());
-        return;
-    }
-
-    // Step 2: Clear any existing error
-    dlerror();
-
-    // Step 3: Load the function symbol
-    rust_test_func = (TestFunc)dlsym(handle, "rust_opencv_test");
-
-    // Check for errors
-    const char* dlsym_error = dlerror();
-    if (dlsym_error) {
-        LOGI("Error loading symbol 'rust_opencv_test': %s", dlsym_error);
-        dlclose(handle);
-        return;
-    }
-
-    // Step 4: Call the function
-    rust_test_func();
-
-    // Step 5: Close the library
-    dlclose(handle);
-
-    return;
-}
-
-struct Engine {
-    android_app*   app;
-    ANativeWindow* window;
-    EGLDisplay     display;
-    EGLSurface     surface;
-    EGLContext     context;
-    OboeEngine     oboeEngine;
-    CameraController controller;
-
-    renderer_2d::Scene* scene;
-    EyeRenderer*        eye_renderer;
-    bool                initialized;
-
-    void compileProgromOnce() {
-        if (scene == nullptr) {
-            scene = new renderer_2d::Scene();
-            scene->addRectangle(std::make_shared<renderer_2d::Rectangle>(0, 0, 0.2, 0.2));
-            scene->addRectangle(std::make_shared<renderer_2d::Rectangle>(0.5, 0.5, 0.2, 0.2));
-            scene->addRectangle(std::make_shared<renderer_2d::Rectangle>(0.8, 0.8, 0.2, 0.2));
-            eye_renderer = new EyeRenderer();
-            //eye_renderer->resize(800, 600);
-        }
-    }
-
-    double last_update_time = 0.0f;
-    double last_animation_time = 0.0f;
-
-    void update() {
-        auto now = get_time_second();
-
-        double delta_time_second = now - last_update_time;
-        last_update_time = now;
-        // if (delta_time_second > 0.1f) {
-        //     LOGE("delta_time_second: %f", delta_time_second);
-        // }
-        if (now - last_animation_time > 5.0f) {
- //           oboeEngine.tap(true);
-            playMp3();
-            last_animation_time = now;
-            if (rand() % 2 == 0) {
-                eye_renderer->playBlink(1.0f);
-            } else {
-                eye_renderer->playSleepy(3.0f);
-            }
-            eye_renderer->playMouth();
-        }
-        eye_renderer->update((float)delta_time_second);
-        scene->update();
-    }
-
-    // Render loop: clear screen to blue
-    void draw() {
-        if (!initialized)
-            return;
-
-        //glClearColor(g_color.r, g_color.g, g_color.b, g_color.a);
-        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        //        scene->draw();
-        eye_renderer->render();
-        eglSwapBuffers(display, surface);
-    }
-    void assetTest() {
-        auto [text, text_size] = readAsset("test.txt");
-        LOGI("asset text(size %ld): %s", text_size, (char*)text->data());
-    }
-
-    void playMp3() {
-        if (std::get<0>(mp3Data) == nullptr) {
-            mp3Data = readAsset("test.mp3");
-            if (std::get<0>(mp3Data) == nullptr) {
-                LOGE("Failed to read asset: %s", "test.mp3");
-                return;
-            }
-        }
-        oboeEngine.playMp3((uint8_t*)std::get<0>(mp3Data)->data(),std::get<1>(mp3Data)); 
-    }
-
-    bool init_display() {
-        // Setup EGL
-        display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
-        eglInitialize(display, 0, 0);
-
-        // Choose config (RGB 565, depth 16)
-        const EGLint attribs[] = {EGL_RENDERABLE_TYPE,
-                                  EGL_OPENGL_ES2_BIT,
-                                  EGL_SURFACE_TYPE,
-                                  EGL_WINDOW_BIT,
-                                  EGL_BLUE_SIZE,
-                                  8,
-                                  EGL_GREEN_SIZE,
-                                  8,
-                                  EGL_RED_SIZE,
-                                  8,
-                                  EGL_DEPTH_SIZE,
-                                  16,
-                                  EGL_NONE};
-
-        EGLint    numConfigs;
-        EGLConfig config;
-        eglChooseConfig(display, attribs, &config, 1, &numConfigs);
-
-        // Create EGL context
-        const EGLint context_attribs[] = {EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE};
-        context = eglCreateContext(display, config, nullptr, context_attribs);
-
-        // Create surface
-        surface = eglCreateWindowSurface(display, config, window, nullptr);
-
-        // Make current
-        if (eglMakeCurrent(display, surface, surface, context) == EGL_FALSE) {
-            LOGI("Failed to eglMakeCurrent");
-            return false;
-        }
-
-        LOGI("OpenGL ES initialized");
-        initialized = true;
-        return true;
-    }
-
-    // Terminate EGL
-    void terminate_display() {
-        if (display != EGL_NO_DISPLAY) {
-            eglMakeCurrent(display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
-            if (context != EGL_NO_CONTEXT) {
-                eglDestroyContext(display, context);
-            }
-            if (surface != EGL_NO_SURFACE) {
-                eglDestroySurface(display, surface);
-            }
-            eglTerminate(display);
-            display = EGL_NO_DISPLAY;
-            context = EGL_NO_CONTEXT;
-            surface = EGL_NO_SURFACE;
-        }
-    }
-
-  private:
-    std::tuple<std::shared_ptr<std::vector<uint8_t>>, size_t> readAsset(std::string filepath) {
-        AAsset* asset = AAssetManager_open(app->activity->assetManager, filepath.c_str(), AASSET_MODE_BUFFER);
-        if (asset == nullptr) {
-            LOGE("Failed to open asset: %s", filepath.c_str());
-            return {nullptr, 0};
-        }
-        size_t size = AAsset_getLength(asset);
-        size_t size2 = AAsset_getRemainingLength(asset);
-        LOGI("size %lu, size2 %lu", size, size2);
-        auto   buf = std::make_shared<std::vector<uint8_t>>(size);
-        LOGI("buf %p, size %d", buf->data(), size);
-        auto   readCount = AAsset_read(asset, buf->data(), size);
-        LOGI("readCount %d", readCount);
-        if (readCount != size) {
-            LOGE("Failed to read asset: %s", filepath.c_str());
-            return {nullptr, 0};
-        }
-        AAsset_close(asset);
-        return {buf, size};
-    }
-    std::tuple<std::shared_ptr<std::vector<uint8_t>>, size_t> mp3Data = {nullptr, 0};
-};
 struct android_app* gapp = nullptr;
-
-struct Color {
-    float r, g, b, a;
-};
-
-volatile Color g_color = {.r = 1.0f, .g = 0.0f, .b = 0.0f, .a = 1.0f};
-
-void change_color() {
-    g_color.r = (float)rand() / (float)RAND_MAX;
-    g_color.g = (float)rand() / (float)RAND_MAX;
-    g_color.b = (float)rand() / (float)RAND_MAX;
-}
-
-// Handle commands from main thread
-void engine_handle_cmd(android_app* app, int32_t cmd) {
-    Engine* engine = (Engine*)app->userData;
-
-    switch (cmd) {
-        case APP_CMD_SAVE_STATE:
-            break;
-
-        case APP_CMD_INIT_WINDOW:
-            if (engine->app->window != nullptr) {
-                engine->window = engine->app->window;
-                engine->init_display();
-                engine->playMp3();
-                engine->oboeEngine.start();
-                if (!engine->controller.openAndCapture("0")) {
-                    LOGE("Failed to open camera");
-                }
-            }
-            break;
-
-        case APP_CMD_TERM_WINDOW:
-            engine->terminate_display();
-            engine->oboeEngine.stop();
-            engine->window = nullptr;
-            break;
-
-        case APP_CMD_DESTROY:
-            engine->app->userData = nullptr;
-            break;
-    }
-}
 
 void HandleKey(int keycode, int bDown) {
     LOGV("Key: code %d (down:%d)\n", keycode, bDown);
-    //	if( keycode == 4 ) { AndroidSendToBack( 1 ); }
 }
 
 void HandleButton(int x, int y, int button, int bDown) {
@@ -291,11 +46,10 @@ void HandleMotion(int x, int y, int mask) {
     LOGV("Motion: %d,%d (%d)\n", x, y, mask);
 }
 
-int32_t handle_input(struct android_app* app, AInputEvent* event) {
+int32_t HandleInput(struct android_app* app, AInputEvent* event) {
     LOGV("handle_input\n");
-#ifdef ANDROID
-    //Potentially do other things here.
 
+#ifdef ANDROID
     if (AInputEvent_getType(event) == AINPUT_EVENT_TYPE_MOTION) {
         static uint64_t downmask;
 
@@ -305,10 +59,9 @@ int32_t handle_input(struct android_app* app, AInputEvent* event) {
         size_t pointerCount = AMotionEvent_getPointerCount(event);
 
         for (size_t i = 0; i < pointerCount; ++i) {
-            int x, y, index;
-            x = AMotionEvent_getX(event, i);
-            y = AMotionEvent_getY(event, i);
-            index = AMotionEvent_getPointerId(event, i);
+            int x = AMotionEvent_getX(event, i);
+            int y = AMotionEvent_getY(event, i);
+            int index = AMotionEvent_getPointerId(event, i);
 
             if (action == AMOTION_EVENT_ACTION_POINTER_DOWN || action == AMOTION_EVENT_ACTION_DOWN) {
                 int id = index;
@@ -350,264 +103,23 @@ int32_t handle_input(struct android_app* app, AInputEvent* event) {
     return 0;
 }
 
-//Based on: https://stackoverflow.com/questions/41820039/jstringjni-to-stdstringc-with-utf8-characters
-
-jstring android_permission_name(JNIEnv* env, const char* perm_name) {
-    // nested class permission in class android.Manifest,
-    // hence android 'slash' Manifest 'dollar' permission
-    //    jclass ClassManifestpermission = env->FindClass( envptr, "android/Manifest$permission");
-    //    jfieldID lid_PERM = env->GetStaticFieldID( envptr, ClassManifestpermission, perm_name, "Ljava/lang/String;" );
-    //    jstring ls_PERM = (jstring)(env->GetStaticObjectField( envptr, ClassManifestpermission, lid_PERM ));
-    const auto ClassManifestpermission = env->FindClass("android/Manifest$permission");
-    LOG_LINE();
-    auto lid_PERM = env->GetStaticFieldID(ClassManifestpermission, perm_name, "Ljava/lang/String;");
-    if (lid_PERM == nullptr) {
-        LOGI("permission not found: %s", perm_name);
-        return nullptr;
-    }
-    LOG_LINE();
-    auto ls_PERM = (jstring)env->GetStaticObjectField(ClassManifestpermission, lid_PERM);
-    LOG_LINE();
-    return ls_PERM;
-}
-
-void AndroidMakeFullscreen() {
-    //Partially based on https://stackoverflow.com/questions/47507714/how-do-i-enable-full-screen-immersive-mode-for-a-native-activity-ndk-app
-    JNIEnv*  env = 0;
-    JNIEnv** envptr = &env;
-    JavaVM*  jvm = gapp->activity->vm;
-
-    jvm->AttachCurrentThread(envptr, NULL);
-    env = (*envptr);
-
-    LOG_LINE();
-
-    //Get android.app.NativeActivity, then get getWindow method handle, returns view.Window type
-    jclass    activityClass = env->FindClass("android/app/NativeActivity");
-    jmethodID getWindow = env->GetMethodID(activityClass, "getWindow", "()Landroid/view/Window;");
-    jobject   window = env->CallObjectMethod(gapp->activity->clazz, getWindow);
-    LOG_LINE();
-
-    //Get android.view.Window class, then get getDecorView method handle, returns view.View type
-    jclass    windowClass = env->FindClass("android/view/Window");
-    jmethodID getDecorView = env->GetMethodID(windowClass, "getDecorView", "()Landroid/view/View;");
-    jobject   decorView = env->CallObjectMethod(window, getDecorView);
-    LOG_LINE();
-
-    //Get the flag values associated with systemuivisibility
-    jclass    viewClass = env->FindClass("android/view/View");
-    const int flagLayoutHideNavigation = env->GetStaticIntField(
-            viewClass, env->GetStaticFieldID(viewClass, "SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION", "I"));
-    const int flagLayoutFullscreen = env->GetStaticIntField(
-            viewClass, env->GetStaticFieldID(viewClass, "SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN", "I"));
-    const int flagLowProfile =
-            env->GetStaticIntField(viewClass, env->GetStaticFieldID(viewClass, "SYSTEM_UI_FLAG_LOW_PROFILE", "I"));
-    const int flagHideNavigation =
-            env->GetStaticIntField(viewClass, env->GetStaticFieldID(viewClass, "SYSTEM_UI_FLAG_HIDE_NAVIGATION", "I"));
-    const int flagFullscreen =
-            env->GetStaticIntField(viewClass, env->GetStaticFieldID(viewClass, "SYSTEM_UI_FLAG_FULLSCREEN", "I"));
-    const int flagImmersiveSticky =
-            env->GetStaticIntField(viewClass, env->GetStaticFieldID(viewClass, "SYSTEM_UI_FLAG_IMMERSIVE_STICKY", "I"));
-    LOG_LINE();
-
-    jmethodID setSystemUiVisibility = env->GetMethodID(viewClass, "setSystemUiVisibility", "(I)V");
-
-    //Call the decorView.setSystemUiVisibility(FLAGS)
-    env->CallVoidMethod(decorView, setSystemUiVisibility,
-                        (flagLayoutHideNavigation | flagLayoutFullscreen | flagLowProfile | flagHideNavigation
-                         | flagFullscreen | flagImmersiveSticky));
-
-    LOG_LINE();
-    //now set some more flags associated with layoutmanager -- note the $ in the class path
-    //search for api-versions.xml
-    //https://android.googlesource.com/platform/development/+/refs/tags/android-9.0.0_r48/sdk/api-versions.xml
-
-    jclass    layoutManagerClass = env->FindClass("android/view/WindowManager$LayoutParams");
-    const int flag_WinMan_Fullscreen = env->GetStaticIntField(
-            layoutManagerClass, (env->GetStaticFieldID(layoutManagerClass, "FLAG_FULLSCREEN", "I")));
-    const int flag_WinMan_KeepScreenOn = env->GetStaticIntField(
-            layoutManagerClass, (env->GetStaticFieldID(layoutManagerClass, "FLAG_KEEP_SCREEN_ON", "I")));
-    const int flag_WinMan_hw_acc = env->GetStaticIntField(
-            layoutManagerClass, (env->GetStaticFieldID(layoutManagerClass, "FLAG_HARDWARE_ACCELERATED", "I")));
-    //    const int flag_WinMan_flag_not_fullscreen = env->GetStaticIntField(layoutManagerClass, (env->GetStaticFieldID(layoutManagerClass, "FLAG_FORCE_NOT_FULLSCREEN", "I") ));
-    //call window.addFlags(FLAGS)
-    env->CallVoidMethod(window, (env->GetMethodID(windowClass, "addFlags", "(I)V")),
-                        (flag_WinMan_Fullscreen | flag_WinMan_KeepScreenOn | flag_WinMan_hw_acc));
-
-    jvm->DetachCurrentThread();
-    LOG_LINE();
-}
-
-/**
- * \brief Tests whether a permission is granted.
- * \param[in] app a pointer to the android app.
- * \param[in] perm_name the name of the permission, e.g.,
- *   "READ_EXTERNAL_STORAGE", "WRITE_EXTERNAL_STORAGE".
- * \retval true if the permission is granted.
- * \retval false otherwise.
- * \note Requires Android API level 23 (Marshmallow, May 2015)
- */
-int AndroidHasPermissions(const char* perm_name) {
-    struct android_app* app = gapp;
-    // const JNIInvokeInterface ** jniiptr = app->activity->vm;
-    auto* jvm = app->activity->vm;
-    // const struct JNIInvokeInterface * jnii = *jniiptr;
-
-    // if( android_sdk_version < 23 )
-    // {
-    // 	printf( "Android SDK version %d does not support AndroidHasPermissions\n", android_sdk_version );
-    // 	return 1;
-    // }
-
-    JNIEnv*  env = 0;
-    JNIEnv** envptr = &env;
-    jvm->AttachCurrentThread(envptr, NULL);
-    env = (*envptr);
-
-    LOGI("AttachCurrentThread success");
-
-    int     result = 0;
-    jstring ls_PERM = android_permission_name(env, perm_name);
-    if (ls_PERM == nullptr) {
-        LOGI("permission not found: %s", perm_name);
-        return 0;
-    }
-    LOG_LINE();
-
-    LOGI("permission name got.");
-
-    jint PERMISSION_GRANTED = (-1);
-
-    {
-        jclass   ClassPackageManager = env->FindClass("android/content/pm/PackageManager");
-        jfieldID lid_PERMISSION_GRANTED = env->GetStaticFieldID(ClassPackageManager, "PERMISSION_GRANTED", "I");
-        PERMISSION_GRANTED = env->GetStaticIntField(ClassPackageManager, lid_PERMISSION_GRANTED);
-    }
-    {
-        jobject   activity = app->activity->clazz;
-        jclass    ClassContext = env->FindClass("android/content/Context");
-        jmethodID MethodcheckSelfPermission =
-                env->GetMethodID(ClassContext, "checkSelfPermission", "(Ljava/lang/String;)I");
-        jint int_result = env->CallIntMethod(activity, MethodcheckSelfPermission, ls_PERM);
-        result = (int_result == PERMISSION_GRANTED);
-    }
-
-    jvm->DetachCurrentThread();
-
-    return result;
-}
-
-/**
- * \brief Query file permissions.
- * \details This opens the system dialog that lets the user
- *  grant (or deny) the permission.
- * \param[in] app a pointer to the android app.
- * \note Requires Android API level 23 (Marshmallow, May 2015)
- */
-void AndroidRequestAppPermissions(const char* perm) {
-    // if( android_sdk_version < 23 )
-    // {
-    // 	printf( "Android SDK version %d does not support AndroidRequestAppPermissions\n",android_sdk_version );
-    // 	return;
-    // }
-
-    struct android_app* app = gapp;
-    JNIEnv*             env = 0;
-    JNIEnv**            envptr = &env;
-    JavaVM*             jvm = app->activity->vm;
-    jvm->AttachCurrentThread(envptr, NULL);
-    jobject activity = app->activity->clazz;
-
-    jobjectArray perm_array = env->NewObjectArray(1, env->FindClass("java/lang/String"), env->NewStringUTF(""));
-    env->SetObjectArrayElement(perm_array, 0, android_permission_name(env, perm));
-    jclass ClassActivity = env->FindClass("android/app/Activity");
-
-    jmethodID MethodrequestPermissions =
-            env->GetMethodID(ClassActivity, "requestPermissions", "([Ljava/lang/String;I)V");
-
-    // Last arg (0) is just for the callback (that I do not use)
-    env->CallVoidMethod(activity, MethodrequestPermissions, perm_array, 0);
-    jvm->DetachCurrentThread();
-}
-
-/* Example:
-	int hasperm = android_has_permission( "RECORD_AUDIO" );
-	if( !hasperm )
-	{
-		android_request_app_permissions( "RECORD_AUDIO" );
-	}
-*/
 // Main entry point
-void android_main(struct android_app* state) {
-    Engine engine = {};
-    engine.app = state;
-    engine.app->userData = &engine;
-    engine.app->onAppCmd = engine_handle_cmd;
-    engine.app->onInputEvent = handle_input;
-    gapp = state;
+void android_main(struct android_app* app) {
+    AppEngine* appEngine = new AppEngine(app);
+
+    app->onAppCmd = AppEngine::handleCmd;
+    app->onInputEvent = HandleInput;
 
 
-    AndroidMakeFullscreen();
+    androidMakeFullscreen(app);
     link_rust();
 
-    // Set activity pointer (optional)
-    // controller.mNativeActivity = app->activity;  // if you want to call finish()
-
-
-    int32_t  outResult;
-    uint32_t pid = 0;
-    uint32_t uid = 0;
-    APermissionManager_checkPermission("CAMERA", pid, uid, &outResult);
-
-    LOGI("Native OpenGL app started");
-
-    // {
-    //     int perm_read_exteranl_storage = AndroidHasPermissions("android.permission.READ_EXTERNAL_STORAGE");
-    //     int perm_write_exteranl_storage = AndroidHasPermissions("android.permission.WRITE_EXTERNAL_STORAGE");
-    //     LOGI("perm_read_exteranl_storage: %d", perm_read_exteranl_storage);
-    //     LOGI("perm_write_exteranl_storage: %d", perm_write_exteranl_storage);
-    // }
-
-    {
-        int perm_read_exteranl_storage = AndroidHasPermissions("READ_EXTERNAL_STORAGE");
-        int perm_write_exteranl_storage = AndroidHasPermissions("WRITE_EXTERNAL_STORAGE");
-        int perm_camera = AndroidHasPermissions("CAMERA");
-        LOGI("perm_read_exteranl_storage: %d", perm_read_exteranl_storage);
-        LOGI("perm_write_exteranl_storage: %d", perm_write_exteranl_storage);
-        LOGI("perm_camera: %d", perm_camera);
-        if (!perm_camera) {
-            AndroidRequestAppPermissions("CAMERA");
-            int perm_camera = AndroidHasPermissions("CAMERA");
-            LOGI("perm_camera: %d", perm_camera);
-        }
-    }
-
-
-    int                         events;
-    struct android_poll_source* source;
 
     uint64_t update_time = 0;
     // Main loop
     while (true) {
-        while (ALooper_pollOnce(0, nullptr, &events, (void**)&source) >= 0) {
-            if (source) {
-                source->process(state, source);
-            }
-
-            if (state->destroyRequested != 0) {
-                engine.terminate_display();
-                return;
-            }
-        }
-
-        // Only draw if initialized
-        if (engine.initialized) {
-            engine.compileProgromOnce();
-            engine.update();
-            engine.draw();
-        }
-
-        // Throttle loop (optional)
-        usleep(16000);  // ~60 FPS
+        appEngine->processEvents();
+        appEngine->processFrame();
+        usleep(16000);  // ~60 FPS, Throttle loop (optional)
     }
 }

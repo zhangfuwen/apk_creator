@@ -8,7 +8,7 @@ export PATH=$PATH:$CARGO_HOME/bin
 
 if [[ -f $CARGO_HOME/env ]]; then
     source $CARGO_HOME/env
-    return
+    exit 0
 fi
 
 detect_osname() {

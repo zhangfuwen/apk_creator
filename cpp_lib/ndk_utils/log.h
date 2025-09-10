@@ -39,3 +39,5 @@ constexpr std::string_view get_filename(const std::string_view path) {
 #define LOGS(fmt, ...) PRINT(ANDROID_LOG_SILENT, fmt, ##__VA_ARGS__)
 
 #define LOG_LINE() LOGI("line_trace") 
+
+#define ASSERT(x, ...) if (!(x)) { LOGF(__VA_ARGS__); abort(); } 

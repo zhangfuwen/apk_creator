@@ -49,6 +49,8 @@ add_library(
   main SHARED
   audio/LatencyTuningCallback.cpp audio/OboeEngine.cpp audio/SoundGenerator.cpp
   main.cpp renderer/eye_renderer.cpp renderer/rectangles_renderer.cpp
+  camera/camera_engine.cpp camera/camera_manager.cpp camera/camera_listeners.cpp
+  camera/image_reader.cpp camera/camera_utils.cpp
 )
 set_target_properties(main PROPERTIES LINKER_LANGUAGE CXX)
 target_include_directories(
