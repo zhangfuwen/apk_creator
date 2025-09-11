@@ -6,7 +6,7 @@
 
 // Random float in [-r, r]
 static float jitter(float r) {
-    return r * (2.0f * rand() / RAND_MAX - 1.0f);
+    return r * (2.0f * ((float)(rand() / RAND_MAX)) - 1.0f);
 }
 
 // Evaluate animation at time t
@@ -48,7 +48,7 @@ const Keyframe sleepyKeys[] = {
         {0.50f, 0.8f},  // Closing
         {0.80f, 0.7f},  // Closed
         {1.00f, 0.6f},  // Opening
-        {3.00f, 0.6f},   // Open
+        {3.00f, 0.6f},  // Open
         {4.40f, 1.0f}   // Open
 };
 
@@ -109,7 +109,7 @@ void EyeRenderer::update(float deltaTime) {
     if (blinkPlayer.state == PLAYING) {
         blinkPlayer.playTime += deltaTime;
         float duration = ANIM_BLINK.keys[ANIM_BLINK.count - 1].time;
-        if (blinkPlayer.playTime/blinkPlayer.timeScale >= duration) {
+        if (blinkPlayer.playTime / blinkPlayer.timeScale >= duration) {
             blinkPlayer.state = FINISHED;
             blinkPlayer.playTime = 0.0f;
         }
@@ -117,7 +117,7 @@ void EyeRenderer::update(float deltaTime) {
     if (sleepyPlayer.state == PLAYING) {
         sleepyPlayer.playTime += deltaTime;
         float duration = ANIM_SLEEPY.keys[ANIM_SLEEPY.count - 1].time;
-        if (sleepyPlayer.playTime/sleepyPlayer.timeScale >= duration) {
+        if (sleepyPlayer.playTime / sleepyPlayer.timeScale >= duration) {
             sleepyPlayer.state = FINISHED;
             sleepyPlayer.playTime = 0.0f;
         }
@@ -142,7 +142,7 @@ void EyeRenderer::render() {
     glUniform2f(uniformResolution, 2.0f * aspectRatio, 2.0f);
     glEnableVertexAttribArray(attribPosition);
 
-    if(blinkPlayer.timeScale < 3.0f) {
+    if (blinkPlayer.timeScale < 3.0f) {
         LOGV("blinkPlayer.timeScale: %f", blinkPlayer.timeScale);
     }
     float blinkValue = 0.0f;
@@ -182,6 +182,7 @@ void EyeRenderer::playSleepy(float scale) {
         sleepyPlayer.timeScale = scale;
     }
 }
+
 void EyeRenderer::playBlink(float scale) {
     LOGI("playBlink %f", scale);
     if (blinkPlayer.state != PLAYING) {
@@ -208,7 +209,7 @@ void EyeRenderer::drawEye(const Eye& eye, float blink, float wrinkle, float idle
     drawPupil(eye, idleOffset);
     drawEyelid(eye, blink);
     if (wrinkle > 0.01f) {
-    //    drawWrinkles(eye, wrinkle);
+        //    drawWrinkles(eye, wrinkle);
     }
 }
 
@@ -252,10 +253,12 @@ void EyeRenderer::drawEyelid(const Eye& eye, float blink) {
         return;
 
     float rx = eye.radius * aspectRatio;
-    float lidHeight = eye.radius * (1.0f - blink * blink)*2;
+    float lidHeight = eye.radius * (1.0f - blink * blink) * 2;
 
-    float vertices[] = {eye.cx - rx, eye.cy + eye.radius - lidHeight,  eye.cx + rx, eye.cy + eye.radius - lidHeight,
-                        eye.cx + rx, eye.cy + eye.radius, eye.cx - rx, eye.cy + eye.radius};
+    float vertices[] = {eye.cx - rx, eye.cy + eye.radius - lidHeight,
+                        eye.cx + rx, eye.cy + eye.radius - lidHeight,
+                        eye.cx + rx, eye.cy + eye.radius,
+                        eye.cx - rx, eye.cy + eye.radius};
 
     glVertexAttribPointer(attribPosition, 2, GL_FLOAT, GL_FALSE, 0, vertices);
     glUniform4f(uniformColor, 0.0f, 0.0f, 0.0f, 1.0f);

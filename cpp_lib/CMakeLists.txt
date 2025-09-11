@@ -12,6 +12,21 @@ include_directories(
   ${CMAKE_ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include
 )
 
+include(FetchContent)
+
+set(NCNN_BUILD_EXAMPLES OFF CACHE BOOL "Build ncnn examples" FORCE)
+set(NCNN_BUILD_TOOLS OFF CACHE BOOL "Build ncnn tools" FORCE)
+set(NCNN_VULKAN ON CACHE BOOL "Enable Vulkan support" FORCE)
+
+FetchContent_Declare(
+    ncnn
+    GIT_REPOSITORY https://github.com/Tencent/ncnn.git
+    GIT_TAG        20250503
+    SOURCE_DIR     ${CMAKE_CURRENT_BINARY_DIR}/ncnn/src
+)
+
+FetchContent_MakeAvailable(ncnn)
+
 # Find required libraries
 find_library(log-lib log)
 find_library(android-lib android)
@@ -44,6 +59,8 @@ set(OBOE_ENABLE_OPENSL
 set(OBOE_INCLUDE_DIR ${VCPKG_ROOT}/installed/arm64-android/include)
 set(OBOE_LINK_DIR ${VCPKG_ROOT}/installed/arm64-android/lib)
 
+add_subdirectory(ai)
+
 # Main native library
 add_library(
   main SHARED
@@ -64,7 +81,7 @@ if(ANDROID AND ANDROID_PLATFORM)
     message(STATUS "Target Android API Level: ${ANDROID_API_NUM}")
 
     # Define __ANDROID_API__ manually (usually already set)
-    target_compile_definitions(main PRIVATE __ANDROID_API__=${ANDROID_API_NUM})
+    #target_compile_definitions(main PRIVATE __ANDROID_API__=${ANDROID_API_NUM})
 
 endif()
 
@@ -74,6 +91,7 @@ target_link_libraries(
   android
   oboe
   native_app_glue
+  yolov8ncnn 
   ${log-lib}
   ${android-lib}
   ${EGL-lib}

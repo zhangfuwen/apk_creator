@@ -41,6 +41,7 @@ if [[ $os == "macOS" ]]; then
 elif [[ $os == "Linux" ]]; then
     export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64 
 elif [[ $os == "Windows" ]]; then
+    echo "don't know how to install jdk on windows"
 fi
 
 export NDK_VERSION="27.3.13750724"

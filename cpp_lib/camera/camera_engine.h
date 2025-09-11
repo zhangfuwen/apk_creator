@@ -28,6 +28,8 @@
 
 bool ndkCheckCameraPermission(void);
 
+using ProcessInplaceRgb = std::function<void(uint8_t* rgb, int32_t width, int32_t height, int32_t stride)> ;
+
 /**
  * basic CameraAppEngine
  */
@@ -39,7 +41,7 @@ class CameraEngine {
   // Interfaces to android application framework
   struct android_app* AndroidApp(void) const;
   void OnAppInitWindow(void);
-  void DrawFrame(void);
+  void DrawFrame(ProcessInplaceRgb func = nullptr);
   void OnAppConfigChange(void);
   void OnAppTermWindow(void);
 

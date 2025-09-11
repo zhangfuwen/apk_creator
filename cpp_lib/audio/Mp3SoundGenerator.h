@@ -21,7 +21,7 @@ class Mp3SoundGenerator : public TappableAudioSource {
         auto channels = mp3.channels;
         auto sample_rate = mp3.sampleRate;
 
-        LOGI("MP3 file has %lu frames, %d ch, %d Hz", pcm_frame_count, channels, sample_rate);
+        LOGI("MP3 file has %llu frames, %d ch, %d Hz", pcm_frame_count, channels, sample_rate);
         auto ret = oboe::ResultWithValue(std::make_shared<Mp3SoundGenerator>(sample_rate, channels));
         ret.value()->mMp3 = mp3;
         return ret;
@@ -38,7 +38,7 @@ class Mp3SoundGenerator : public TappableAudioSource {
         auto channels = mp3.channels;
         auto sample_rate = mp3.sampleRate;
 
-        LOGI("MP3 file has %lu frames, %d ch, %d Hz", pcm_frame_count, channels, sample_rate);
+        LOGI("MP3 file has %llu frames, %d ch, %d Hz", pcm_frame_count, channels, sample_rate);
         auto ret = oboe::ResultWithValue(std::make_shared<Mp3SoundGenerator>(sample_rate, channels));
         ret.value()->mMp3 = mp3;
         return ret;
@@ -55,7 +55,7 @@ class Mp3SoundGenerator : public TappableAudioSource {
         auto channels = mMp3.channels;
         auto sample_rate = mMp3.sampleRate;
 
-        LOGI("MP3 file has %lu frames, %d ch, %d Hz", pcm_frame_count, channels, sample_rate);
+        LOGI("MP3 file has %llu frames, %d ch, %d Hz", pcm_frame_count, channels, sample_rate);
         mSampleRate = sample_rate;
         mChannelCount = channels;
         mTotalFrames = pcm_frame_count;

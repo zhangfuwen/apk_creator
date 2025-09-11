@@ -149,23 +149,42 @@ void CameraEngine::OnCameraParameterChanged(int32_t code, int64_t val) {
  * The main function rendering a frame. In our case, it is yuv to RGBA8888
  * converter
  */
-void CameraEngine::DrawFrame(void) {
-    if (!cameraReady_ || !yuvReader_)
+void CameraEngine::DrawFrame(ProcessInplaceRgb processor) {
+    if (!cameraReady_ || !yuvReader_) {
+        LOGE("Failed to draw frame, cameraReady_: %d, yuvReader_: %p", cameraReady_, yuvReader_);
         return;
+    }
     AImage* image = yuvReader_->GetNextImage();
     if (!image) {
+        LOGE("Failed to get frame, image: %p", image);
         return;
     }
 
     ANativeWindow_acquire(app_->window);
     ANativeWindow_Buffer buf;
     if (ANativeWindow_lock(app_->window, &buf, nullptr) < 0) {
+        LOGE("Failed to lock native window");
         yuvReader_->DeleteImage(image);
         return;
     }
 
     yuvReader_->DisplayImage(&buf, image);
+    if (processor) {
+        LOGV("processor is not null");
+        auto data = buf.bits;
+        auto width = buf.width;
+        auto height = buf.height;
+        auto stride = buf.stride;
+        if (buf.format == WINDOW_FORMAT_RGBA_8888) {
+            LOGV("format is WINDOW_FORMAT_RGBA_8888");
+        } else {
+            LOGV("format is %d", buf.format);
+        }
+        processor((uint8_t*)data, width, height, stride);
+
+    }
     ANativeWindow_unlockAndPost(app_->window);
+    LOGV("Frame drawn");
     ANativeWindow_release(app_->window);
 }
 
@@ -207,8 +226,8 @@ void CameraEngine::OnAppInitWindow(void) {
     // NativeActivity end is ready to display, start pulling images
     cameraReady_ = true;
     // LOGI("Start preview");
-    // camera_->StartPreview(true);
-    camera_->TakePhoto();
+    camera_->StartPreview(true);
+    //camera_->TakePhoto();
     LOGV("exit");
 }
 
@@ -285,7 +304,7 @@ bool ndkCheckCameraPermission() {
     uint32_t pid = 0;
     uint32_t uid = 0;
     auto     code = APermissionManager_checkPermission("android.permission.CAMERA", pid, uid, &outResult);
-    if (code = PERMISSION_MANAGER_STATUS_OK) {
+    if (code != PERMISSION_MANAGER_STATUS_OK) {
         LOGI("APermissionManager_checkPermission error: %d", code);
         return false;
     }

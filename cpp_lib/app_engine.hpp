@@ -1,3 +1,4 @@
+#include "ai/yolov8.h"
 #define DR_MP3_IMPLEMENTATION
 #include <android/asset_manager.h>
 #include <android/input.h>
@@ -28,10 +29,11 @@
 #include "ndk_utils/log.h"
 #include "ndk_utils/util.h"
 
-
 #include "audio/OboeEngine.h"
 #include "camera/CameraController.hpp"
 #include "camera/camera_engine.h"
+
+#include "ai/yolov8.h"
 
 struct AppEngine {
     AppEngine(android_app* app) : m_app(app) { app->userData = this; }
@@ -57,8 +59,11 @@ struct AppEngine {
                         break;
                     }
                     appEngine->m_window = app->window;
-                    appEngine->initDisplay();
+                    //                    appEngine->initDisplay();
+
                     appEngine->playMp3();
+                    appEngine->initYolo();
+                    appEngine->m_initialized = true;
                     appEngine->m_oboeEngine.start();
                     // if (!appEngine->m_camCtrl.openAndCapture("0")) {
                     //     LOGE("Failed to open camera");
@@ -68,6 +73,13 @@ struct AppEngine {
                                                              ANativeWindow_getHeight(app->window),
                                                              ANativeWindow_getFormat(app->window));
                     appEngine->m_camEngine->OnAppInitWindow();
+
+                    // auto yolov8 = new YOLOv8_det_coco();
+                    // auto assetMgr = app->activity->assetManager;
+                    // yolov8->load(assetMgr, "yolov8n.param", "yolov8n.bin", true);
+                    // yolov8->set_det_target_size(320);
+                    // yolov8->detect(const cv::Mat &rgb, std::vector<Object> &objects);
+                    // appEngine->m_yolov8 = yolov8;
                 }
                 break;
             case APP_CMD_START:
@@ -122,7 +134,7 @@ struct AppEngine {
             return false;
         }
         //update();
-        //draw();
+        draw();
         return true;
     }
 
@@ -223,15 +235,20 @@ struct AppEngine {
 
     // Render loop: clear screen to blue
     void draw() {
+        m_camEngine->DrawFrame([this](uint8_t* data, int32_t width, int32_t height, int32_t stride) {
+            YoloProcesser(data, width, height, stride);
+        });
+        // m_camEngine->DrawFrame(nullptr);
         if (!m_initialized)
             return;
 
+
         //glClearColor(g_color.r, g_color.g, g_color.b, g_color.a);
-        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        //        scene->draw();
-        m_eyeRenderer->render();
-        eglSwapBuffers(m_display, m_surface);
+        // glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        // //        scene->draw();
+        // m_eyeRenderer->render();
+        // eglSwapBuffers(m_display, m_surface);
     }
 
     void playMp3() {
@@ -247,6 +264,7 @@ struct AppEngine {
 
 
   private:
+
     void assetTest() {
         auto [text, text_size] = readAsset("test.txt");
         LOGI("asset text(size %ld): %s", text_size, (char*)text->data());
@@ -262,7 +280,7 @@ struct AppEngine {
         size_t size2 = AAsset_getRemainingLength(asset);
         LOGI("size %lu, size2 %lu", size, size2);
         auto buf = std::make_shared<std::vector<uint8_t>>(size);
-        LOGI("buf %p, size %d", buf->data(), size);
+        LOGI("buf %p, size %zu", buf->data(), size);
         auto readCount = AAsset_read(asset, buf->data(), size);
         LOGI("readCount %d", readCount);
         if (readCount != size) {
@@ -271,6 +289,80 @@ struct AppEngine {
         }
         AAsset_close(asset);
         return {buf, size};
+    }
+
+    void initYolo() {
+        if (m_yolov8 == nullptr) {
+            LOGI("YoloProcesser m_yolov8 == nullptr, create m_yolov8");
+            auto yolo = new YOLOv8_det_oiv7;
+            //yolo = new YOLOv8_det_coco;
+            // if (taskid == 1) m_yolov8 = new YOLOv8_det_oiv7;
+            // if (taskid == 2) m_yolov8 = new YOLOv8_seg;
+            // if (taskid == 3) m_yolov8 = new YOLOv8_pose;
+            // if (taskid == 4) m_yolov8 = new YOLOv8_cls;
+            // if (taskid == 5) m_yolov8 = new YOLOv8_obb;
+            //std::string parampath = "yolov8n_pnnx.py.ncnn.param";
+            //std::string modelpath = "yolov8n_pnnx.py.ncnn.bin";
+            std::string parampath = "yolov8n_oiv7.ncnn.param";
+            std::string modelpath = "yolov8n_oiv7.ncnn.bin";
+
+            bool use_gpu = true;
+            bool use_turnip = false;
+            if (use_turnip)
+            {
+                ncnn::create_gpu_instance("libvulkan_freedreno.so");
+            }
+            else if (use_gpu)
+            {
+                ncnn::create_gpu_instance();
+            }
+
+            LOGI("load yolo: %s, %s", parampath.c_str(), modelpath.c_str());
+            auto ret = yolo->load(m_app->activity->assetManager, parampath.c_str(), modelpath.c_str(),
+                                  use_gpu || use_turnip);
+            if (ret != 0) {
+                LOGE("Failed to load yolo: %d", ret);
+                return;
+            }
+            yolo->set_det_target_size(320);
+            LOGI("load yolo ok");
+            m_yolov8 = yolo;
+        }
+    }
+
+    void YoloProcesser(uint8_t* data, int32_t width, int32_t height, int32_t stride) {
+        LOGV("entry, data:%p, %d, %d, %d", data, width, height, stride);
+        if (m_yolov8 == nullptr) {
+            LOGE("YoloProcesser m_yolov8 == nullptr");
+            return;
+        }
+
+        cv::Mat rgb(height, width, CV_8UC3);
+
+        for(int i = 0; i < height; i++) {
+            for(int j = 0; j < width; j++) {
+                rgb.at<cv::Vec3b>(i, j)[0] = data[i * stride + j * 4 + 0];
+                rgb.at<cv::Vec3b>(i, j)[1] = data[i * stride + j * 4 + 1];
+                rgb.at<cv::Vec3b>(i, j)[2] = data[i * stride + j * 4 + 2];
+            }
+        }
+        std::vector<Object> objects;
+        m_yolov8->detect(rgb, objects);
+        if (!objects.empty()) {
+            LOGI("detected %zu objects", objects.size());
+            LOGI("first: %d, %f, %f, %f, %f", objects[0].label, objects[0].rect.x, objects[0].rect.y, objects[0].rect.width, objects[0].rect.height);
+        }
+
+        m_yolov8->draw(rgb, objects);
+
+        for(int row = 0; row < height; row++) {
+            for(int col = 0; col < width; col++) {
+                data[row * stride + col * 4 + 0] = rgb.at<cv::Vec3b>(row, col)[0];
+                data[row * stride + col * 4 + 1] = rgb.at<cv::Vec3b>(row, col)[1];
+                data[row * stride + col * 4 + 2] = rgb.at<cv::Vec3b>(row, col)[2];
+            }
+        }
+
     }
 
   private:
@@ -293,4 +385,6 @@ struct AppEngine {
     double m_lastAnimationTime = 0.0f;
 
     std::tuple<std::shared_ptr<std::vector<uint8_t>>, size_t> m_mp3Data = {nullptr, 0};
+
+    YOLOv8* m_yolov8 = nullptr;
 };

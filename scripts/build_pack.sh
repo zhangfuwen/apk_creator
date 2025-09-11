@@ -53,6 +53,7 @@ echo "Add library to apk"
 if [[ -d build/native_libs ]]; then
     cd build/native_libs
     zip -g ../apk/app-unaligned.apk lib/arm64-v8a/libmain.so
+    zip -g ../apk/app-unaligned.apk lib/arm64-v8a/libyolov8ncnn.so
     cd ../..
 fi
 
