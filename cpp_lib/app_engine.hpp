@@ -271,43 +271,13 @@ struct AppEngine {
         }
         m_rgba.format = WINDOW_FORMAT_RGBA_8888;
         if(m_rgba.bits == nullptr) {
-            m_rgba.width = m_rgba.stride = 480;
-            m_rgba.height = 640;
+            m_rgba.width = m_rgba.stride = 640;
+            m_rgba.height = 480;
             m_rgba.bits = new uint8_t[m_rgba.width * m_rgba.height * 4];
         }
         auto ret = m_camEngine->GetImageData(m_rgba);
         if (ret == 0) {
-            // memset(m_rgba.bits, 0xff, m_rgba.width * m_rgba.height * 4);
-            // uint32_t* data = (uint32_t*)m_rgba.bits;
-            // int r = m_rgba.height -1;
-            // int c = 0;
-            // data[r * m_rgba.stride + c] = 0xff0000ff;
-            // r = m_rgba.height - 2;
-            // c = 1;
-            // data[r * m_rgba.stride + c] = 0xff00ff00;
-            // r = m_rgba.height - 3;
-            // c = 2;
-            // data[r * m_rgba.stride + c] = 0xff00ff00;
-            // for (int r = 0; r < m_rgba.height; r++) {
-            //     if ( r < m_rgba.height - 2) {
-            //         continue;
-            //     }
-            //     for(int c = 0; c < m_rgba.stride; c++) {
-            //         if (c > 2 ) {
-            //             continue;
-            //         }
-            //         data[r * m_rgba.stride + c] = 0xff00ff00;
-            //     }
-            // }
-            // for (int c = 0; c < m_rgba.width; c++) {
-            //     for(int r = 0; r < m_rgba.height; r++) {
-            //         if (r > 2 && r < m_rgba.height - 2) {
-            //             continue;
-            //         }
-            //         data[r * m_rgba.stride + c] = 0xff00ff00;
-            //         
-            //     }
-            // }
+            YoloProcesser((uint8_t*)m_rgba.bits, m_rgba.width, m_rgba.height, m_rgba.stride*4);
             m_textureRenderer->loadTexture(m_rgba.bits, m_rgba.width, m_rgba.height);
         }
 
@@ -398,8 +368,15 @@ struct AppEngine {
         }
     }
 
-    void YoloProcesser(uint8_t* data, int32_t width, int32_t height, int32_t stride) {
-        LOGV("entry, data:%p, %d, %d, %d", data, width, height, stride);
+    /**
+     * YoloProcesser
+     * @param rgba: rgba data, width * height * 4
+     * @param width: image width
+     * @param height: image height
+     * @param stride: image stride, in bytes
+     */
+    void YoloProcesser(uint8_t* rgba, int32_t width, int32_t height, int32_t stride) {
+        LOGV("entry, data:%p, %d, %d, %d", rgba, width, height, stride);
         if (m_yolov8 == nullptr) {
             LOGE("YoloProcesser m_yolov8 == nullptr");
             return;
@@ -409,9 +386,9 @@ struct AppEngine {
 
         for(int i = 0; i < height; i++) {
             for(int j = 0; j < width; j++) {
-                rgb.at<cv::Vec3b>(i, j)[0] = data[i * stride + j * 4 + 0];
-                rgb.at<cv::Vec3b>(i, j)[1] = data[i * stride + j * 4 + 1];
-                rgb.at<cv::Vec3b>(i, j)[2] = data[i * stride + j * 4 + 2];
+                rgb.at<cv::Vec3b>(i, j)[0] = rgba[i * stride + j * 4 + 0];
+                rgb.at<cv::Vec3b>(i, j)[1] = rgba[i * stride + j * 4 + 1];
+                rgb.at<cv::Vec3b>(i, j)[2] = rgba[i * stride + j * 4 + 2];
             }
         }
         std::vector<Object> objects;
@@ -425,9 +402,9 @@ struct AppEngine {
 
         for(int row = 0; row < height; row++) {
             for(int col = 0; col < width; col++) {
-                data[row * stride + col * 4 + 0] = rgb.at<cv::Vec3b>(row, col)[0];
-                data[row * stride + col * 4 + 1] = rgb.at<cv::Vec3b>(row, col)[1];
-                data[row * stride + col * 4 + 2] = rgb.at<cv::Vec3b>(row, col)[2];
+                rgba[row * stride + col * 4 + 0] = rgb.at<cv::Vec3b>(row, col)[0];
+                rgba[row * stride + col * 4 + 1] = rgb.at<cv::Vec3b>(row, col)[1];
+                rgba[row * stride + col * 4 + 2] = rgb.at<cv::Vec3b>(row, col)[2];
             }
         }
 
