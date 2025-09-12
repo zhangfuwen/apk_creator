@@ -1,5 +1,6 @@
 #pragma once
 #include <vector>
+#include <unistd.h>
 #include <oboe/AudioStreamCallback.h>
 #include "ndk_utils/log.h"
 
@@ -16,6 +17,7 @@ public:
 
     virtual oboe::DataCallbackResult
     onAudioReady(oboe::AudioStream *oboeStream, void *audioData, int32_t numFrames) override {
+        (void)oboeStream;
 
         if (mIsThreadAffinityEnabled && !mIsThreadAffinitySet) {
             setThreadAffinity();

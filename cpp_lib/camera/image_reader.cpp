@@ -247,7 +247,7 @@ bool ImageReader::DisplayImage(ANativeWindow_Buffer* buf, AImage* image) {
  *   Refer to:
  * https://mathbits.com/MathBits/TISection/Geometry/Transformations2.htm
  */
-void ImageReader::PresentImage(ANativeWindow_Buffer* buf, AImage* image) {
+void ImageReader::PresentImage(ANativeWindow_Buffer * buf, AImage* image) {
   AImageCropRect srcRect;
   AImage_getCropRect(image, &srcRect);
 
@@ -261,6 +261,7 @@ void ImageReader::PresentImage(ANativeWindow_Buffer* buf, AImage* image) {
   AImage_getPlaneData(image, 2, &vPixel, &vLen);
   int32_t uvPixelStride;
   AImage_getPlanePixelStride(image, 1, &uvPixelStride);
+    LOGI("yPixel %p, yLen %d, yStride %d, uvPixelStride %d, uPixel %p, uLen %d, uvStride %d, vPixel %p, vLen %d", yPixel, yLen, yStride, uvPixelStride, uPixel, uLen, uvStride, vPixel, vLen);
 
   int32_t height = MIN(buf->height, (srcRect.bottom - srcRect.top));
   int32_t width = MIN(buf->width, (srcRect.right - srcRect.left));
@@ -344,6 +345,7 @@ void ImageReader::PresentImage180(ANativeWindow_Buffer* buf, AImage* image) {
 
   int32_t height = MIN(buf->height, (srcRect.bottom - srcRect.top));
   int32_t width = MIN(buf->width, (srcRect.right - srcRect.left));
+    LOGI("yPixel %p, yLen %d, yStride %d, uvPixelStride %d, uPixel %p, uLen %d, uvStride %d, vPixel %p, vLen %d", yPixel, yLen, yStride, uvPixelStride, uPixel, uLen, uvStride, vPixel, vLen);
 
   uint32_t* out = static_cast<uint32_t*>(buf->bits);
   out += (height - 1) * buf->stride;
@@ -386,6 +388,7 @@ void ImageReader::PresentImage270(ANativeWindow_Buffer* buf, AImage* image) {
 
   int32_t height = MIN(buf->width, (srcRect.bottom - srcRect.top));
   int32_t width = MIN(buf->height, (srcRect.right - srcRect.left));
+    LOGI("yPixel %p, yLen %d, yStride %d, uvPixelStride %d, uPixel %p, uLen %d, uvStride %d, vPixel %p, vLen %d", yPixel, yLen, yStride, uvPixelStride, uPixel, uLen, uvStride, vPixel, vLen);
 
   uint32_t* out = static_cast<uint32_t*>(buf->bits);
   for (int32_t y = 0; y < height; y++) {

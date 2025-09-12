@@ -14,15 +14,24 @@ include_directories(
 
 include(FetchContent)
 
-set(NCNN_BUILD_EXAMPLES OFF CACHE BOOL "Build ncnn examples" FORCE)
-set(NCNN_BUILD_TOOLS OFF CACHE BOOL "Build ncnn tools" FORCE)
-set(NCNN_VULKAN ON CACHE BOOL "Enable Vulkan support" FORCE)
+set(NCNN_BUILD_EXAMPLES
+    OFF
+    CACHE BOOL "Build ncnn examples" FORCE
+)
+set(NCNN_BUILD_TOOLS
+    OFF
+    CACHE BOOL "Build ncnn tools" FORCE
+)
+set(NCNN_VULKAN
+    ON
+    CACHE BOOL "Enable Vulkan support" FORCE
+)
 
 FetchContent_Declare(
-    ncnn
-    GIT_REPOSITORY https://github.com/Tencent/ncnn.git
-    GIT_TAG        20250503
-    SOURCE_DIR     ${CMAKE_CURRENT_BINARY_DIR}/ncnn/src
+  ncnn
+  GIT_REPOSITORY https://github.com/Tencent/ncnn.git
+  GIT_TAG 20250503
+  SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/ncnn/src
 )
 
 FetchContent_MakeAvailable(ncnn)
@@ -64,24 +73,42 @@ add_subdirectory(ai)
 # Main native library
 add_library(
   main SHARED
-  audio/LatencyTuningCallback.cpp audio/OboeEngine.cpp audio/SoundGenerator.cpp
-  main.cpp renderer/eye_renderer.cpp renderer/rectangles_renderer.cpp
-  camera/camera_engine.cpp camera/camera_manager.cpp camera/camera_listeners.cpp
-  camera/image_reader.cpp camera/camera_utils.cpp
+  audio/LatencyTuningCallback.cpp
+  audio/OboeEngine.cpp
+  audio/SoundGenerator.cpp
+  camera/camera_engine.cpp
+  camera/camera_listeners.cpp
+  camera/camera_manager.cpp
+  camera/camera_utils.cpp
+  camera/image_reader.cpp
+  main.cpp
+  renderer/eye_renderer.cpp
+  renderer/rectangles_renderer.cpp
 )
-set_target_properties(main PROPERTIES LINKER_LANGUAGE CXX)
+set_target_properties(
+  main
+  PROPERTIES LINKER_LANGUAGE CXX
+             CXX_STANDARD 20
+             CXX_STANDARD_REQUIRED ON
+             CXX_EXTENSIONS OFF
+)
 target_include_directories(
-  main PRIVATE ${CMAKE_ANDROID_NDK}/sources/android/native_app_glue
-               ${OBOE_INCLUDE_DIR} ${CMAKE_SOURCE_DIR}
+  main SYSTEM PRIVATE ${CMAKE_ANDROID_NDK}/sources/android/native_app_glue
+                      ${OBOE_INCLUDE_DIR} ${CMAKE_SOURCE_DIR}
 )
 target_link_directories(main PRIVATE ${OBOE_LINK_DIR})
+target_compile_options(
+  main PRIVATE -Wall -Wextra -Werror # Treat all warnings as errors
+  -DRENDER_CAM_TO_WINDOW=0
+)
+
 # Extract numeric API level from ANDROID_PLATFORM (e.g., android-24 → 24)
 if(ANDROID AND ANDROID_PLATFORM)
-    string(REGEX MATCH "[0-9]+" ANDROID_API_NUM "${ANDROID_PLATFORM}")
-    message(STATUS "Target Android API Level: ${ANDROID_API_NUM}")
+  string(REGEX MATCH "[0-9]+" ANDROID_API_NUM "${ANDROID_PLATFORM}")
+  message(STATUS "Target Android API Level: ${ANDROID_API_NUM}")
 
-    # Define __ANDROID_API__ manually (usually already set)
-    #target_compile_definitions(main PRIVATE __ANDROID_API__=${ANDROID_API_NUM})
+  # Define __ANDROID_API__ manually (usually already set)
+  # target_compile_definitions(main PRIVATE __ANDROID_API__=${ANDROID_API_NUM})
 
 endif()
 
@@ -91,7 +118,7 @@ target_link_libraries(
   android
   oboe
   native_app_glue
-  yolov8ncnn 
+  yolov8ncnn
   ${log-lib}
   ${android-lib}
   ${EGL-lib}

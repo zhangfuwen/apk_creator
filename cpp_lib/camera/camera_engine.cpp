@@ -20,8 +20,10 @@
 
 #include "camera_engine.h"
 #include "ndk_utils/log.h"
+#include "ndk_utils/data_types.h"
 
 #include <cstdio>
+#include <media/NdkImage.h>
 
 /**
  * constructor and destructor for main application class
@@ -81,9 +83,11 @@ void CameraEngine::CreateCamera(void) {
     ASSERT(view.width && view.height, "Could not find supportable resolution");
 
     // Request the necessary nativeWindow to OS
+#if RENDER_CAM_TO_WINDOW
     bool portraitNativeWindow = (savedNativeWinRes_.width < savedNativeWinRes_.height);
-    ANativeWindow_setBuffersGeometry(app_->window, portraitNativeWindow ? view.height : view.width,
-                                     portraitNativeWindow ? view.width : view.height, WINDOW_FORMAT_RGBA_8888);
+       ANativeWindow_setBuffersGeometry(app_->window, portraitNativeWindow ? view.height : view.width,
+                                        portraitNativeWindow ? view.width : view.height, WINDOW_FORMAT_RGBA_8888);
+#endif
 
     yuvReader_ = new ImageReader(&view, AIMAGE_FORMAT_YUV_420_888);
     yuvReader_->SetPresentRotation(imageRotation);
@@ -145,13 +149,63 @@ void CameraEngine::OnCameraParameterChanged(int32_t code, int64_t val) {
     camera_->UpdateCameraRequestParameter(code, val);
 }
 
+[[maybe_unused]] static inline uint32_t YUV2RGBA(int nY, int nU, int nV) {
+    static const int kMaxChannelValue = 262143;
+    nY -= 16;
+    nU -= 128;
+    nV -= 128;
+    if (nY < 0)
+        nY = 0;
+
+    // This is the floating point equivalent. We do the conversion in integer
+    // because some Android devices do not have floating point in hardware.
+    // nR = (int)(1.164 * nY + 1.596 * nV);
+    // nG = (int)(1.164 * nY - 0.813 * nV - 0.391 * nU);
+    // nB = (int)(1.164 * nY + 2.018 * nU);
+
+    int nR = (int)(1192 * nY + 1634 * nV);
+    int nG = (int)(1192 * nY - 833 * nV - 400 * nU);
+    int nB = (int)(1192 * nY + 2066 * nU);
+
+    nR = std::min(kMaxChannelValue, std::max(0, nR));
+    nG = std::min(kMaxChannelValue, std::max(0, nG));
+    nB = std::min(kMaxChannelValue, std::max(0, nB));
+
+    nR = (nR >> 10) & 0xff;
+    nG = (nG >> 10) & 0xff;
+    nB = (nB >> 10) & 0xff;
+
+    uint32_t color = 0xff000000 | (nB << 16) | (nG << 8) | nR;
+    return color;
+}
+
+/**
+ * Get RGBA image data from preview ImageReader
+ * @param buf out buffer 
+ * @param width pointer to image width
+ * @param height pointer to image height
+ */
+int CameraEngine::GetImageData(ANativeWindow_Buffer &buf) {
+    if (!cameraReady_ || !yuvReader_) {
+        LOGE("Not ready yet, cameraReady_: %d, yuvReader_: %p", cameraReady_, yuvReader_);
+        return -1;
+    }
+    AImage* image = yuvReader_->GetNextImage();
+    if (!image) {
+        return -1;
+    }
+
+    yuvReader_->DisplayImage(&buf, image);
+    return 0;
+}
+
 /**
  * The main function rendering a frame. In our case, it is yuv to RGBA8888
  * converter
  */
 void CameraEngine::DrawFrame(ProcessInplaceRgb processor) {
     if (!cameraReady_ || !yuvReader_) {
-        LOGE("Failed to draw frame, cameraReady_: %d, yuvReader_: %p", cameraReady_, yuvReader_);
+        LOGV("Failed to draw frame, cameraReady_: %d, yuvReader_: %p", cameraReady_, yuvReader_);
         return;
     }
     AImage* image = yuvReader_->GetNextImage();
@@ -181,7 +235,6 @@ void CameraEngine::DrawFrame(ProcessInplaceRgb processor) {
             LOGV("format is %d", buf.format);
         }
         processor((uint8_t*)data, width, height, stride);
-
     }
     ANativeWindow_unlockAndPost(app_->window);
     LOGV("Frame drawn");

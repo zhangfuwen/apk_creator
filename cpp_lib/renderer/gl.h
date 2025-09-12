@@ -1,7 +1,6 @@
 #include <algorithm>
 #include <cstdlib>
 #include <memory>
-#include <stdint.h>
 #include <vector>
 #include <GLES3/gl32.h>
 
@@ -21,9 +20,10 @@ namespace renderer_2d {
         float r, g, b, a;
     };
 
-    struct Object {
+    class Object {
       public:
         Object(Point start) { position = start; }
+        virtual ~Object() {}
 
         Point position;
         Size  scale = {1.0f, 1.0f};
@@ -95,7 +95,8 @@ namespace renderer_2d {
         float radius_;
     };
 
-    struct Scene {
+    class Scene {
+        public:
         RectanglesRenderer rectangles_renderer;
 
         void addRectangle(std::shared_ptr<Rectangle> rect) { rectangles.push_back(rect); }

@@ -172,6 +172,11 @@ void EyeRenderer::render() {
 
     // Draw mouth
     drawMouth(time, mouthValue, 0.0f);  // Smile whe
+
+    glDisableVertexAttribArray(attribPosition);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+    glUseProgram(0);
 }
 
 void EyeRenderer::playSleepy(float scale) {
@@ -303,6 +308,7 @@ void EyeRenderer::buildCircle(float cx, float cy, float rx, float ry, float* out
 }
 
 void EyeRenderer::drawMouth(float t, float smileFactor, float openFactor) {
+    (void)t;
     float cx = 0.0f;                                   // Center of face
     float cy = -0.3f;                                  // Below eyes
     float width = 0.4f;                                // Mouth width

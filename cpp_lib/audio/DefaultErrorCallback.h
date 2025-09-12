@@ -19,13 +19,14 @@ public:
     virtual ~DefaultErrorCallback() = default;
 
     virtual void onErrorAfterClose(oboe::AudioStream *oboeStream, oboe::Result error) override {
+        (void)oboeStream;
         // Restart the stream if the error is a disconnect, otherwise do nothing and log the error
         // reason.
         if (error == oboe::Result::ErrorDisconnected) {
             LOGI("Restarting AudioStream");
             mParent.restart();
         }
-        LOGE("Error was %s", oboe::convertToText(error));
+//        LOGE("Error was %s", oboe::convertToText(error));
     }
 
 private:

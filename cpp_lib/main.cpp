@@ -19,7 +19,6 @@
 #include <media/NdkImageReader.h>
 
 #include <dlfcn.h>
-#include "camera/camera_engine.h"
 #include "ndk_utils/log.h"
 
 #include "app_engine.hpp"
@@ -51,7 +50,7 @@ int32_t HandleInput(struct android_app* app, AInputEvent* event) {
 
 #ifdef ANDROID
     if (AInputEvent_getType(event) == AINPUT_EVENT_TYPE_MOTION) {
-        static uint64_t downmask;
+        [[maybe_unused]] static uint64_t downmask;
 
         int action = AMotionEvent_getAction(event);
         int whichsource = action >> 8;
@@ -83,7 +82,8 @@ int32_t HandleInput(struct android_app* app, AInputEvent* event) {
         }
         return 1;
     } else if (AInputEvent_getType(event) == AINPUT_EVENT_TYPE_KEY) {
-        int code = AKeyEvent_getKeyCode(event);
+        [[maybe_unused]] int code = AKeyEvent_getKeyCode(event);
+        
 #    ifdef ANDROID_USE_SCANCODES
         HandleKey(code, AKeyEvent_getAction(event));
 #    else
@@ -115,7 +115,7 @@ void android_main(struct android_app* app) {
     link_rust();
 
 
-    uint64_t update_time = 0;
+    [[maybe_unused]] uint64_t update_time = 0;
     // Main loop
     while (true) {
         appEngine->processEvents();

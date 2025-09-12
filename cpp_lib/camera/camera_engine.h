@@ -25,55 +25,58 @@
 #include <thread>
 
 #include "camera_manager.h"
+#include "ndk_utils/data_types.h"
 
 bool ndkCheckCameraPermission(void);
 
-using ProcessInplaceRgb = std::function<void(uint8_t* rgb, int32_t width, int32_t height, int32_t stride)> ;
+using ProcessInplaceRgb = std::function<void(uint8_t* rgb, int32_t width, int32_t height, int32_t stride)>;
 
 /**
  * basic CameraAppEngine
  */
 class CameraEngine {
- public:
-  explicit CameraEngine(android_app* app);
-  ~CameraEngine();
+  public:
+    explicit CameraEngine(android_app* app);
+    ~CameraEngine();
 
-  // Interfaces to android application framework
-  struct android_app* AndroidApp(void) const;
-  void OnAppInitWindow(void);
-  void DrawFrame(ProcessInplaceRgb func = nullptr);
-  void OnAppConfigChange(void);
-  void OnAppTermWindow(void);
+    // Interfaces to android application framework
+    struct android_app* AndroidApp(void) const;
 
-  // Native Window handlers
-  int32_t GetSavedNativeWinWidth(void);
-  int32_t GetSavedNativeWinHeight(void);
-  int32_t GetSavedNativeWinFormat(void);
-  void SaveNativeWinRes(int32_t w, int32_t h, int32_t format);
+    void OnAppInitWindow(void);
+    void DrawFrame(ProcessInplaceRgb func = nullptr);
+    int GetImageData(ANativeWindow_Buffer& buf);
+    void OnAppConfigChange(void);
+    void OnAppTermWindow(void);
 
-  // UI handlers
-  void RequestCameraPermission();
-  void OnCameraPermission(jboolean granted);
-  void EnableUI(void);
-  void OnTakePhoto(void);
-  void OnCameraParameterChanged(int32_t code, int64_t val);
+    // Native Window handlers
+    int32_t GetSavedNativeWinWidth(void);
+    int32_t GetSavedNativeWinHeight(void);
+    int32_t GetSavedNativeWinFormat(void);
+    void    SaveNativeWinRes(int32_t w, int32_t h, int32_t format);
 
-  // Manage NDKCamera Object
-  void CreateCamera(void);
-  void DeleteCamera(void);
+    // UI handlers
+    void RequestCameraPermission();
+    void OnCameraPermission(jboolean granted);
+    void EnableUI(void);
+    void OnTakePhoto(void);
+    void OnCameraParameterChanged(int32_t code, int64_t val);
 
- private:
-  void OnPhotoTaken(const char* fileName);
-  int GetDisplayRotation(void);
+    // Manage NDKCamera Object
+    void CreateCamera(void);
+    void DeleteCamera(void);
 
-  struct android_app* app_;
-  ImageFormat savedNativeWinRes_;
-  bool cameraGranted_;
-  int rotation_;
-  volatile bool cameraReady_;
-  NDKCamera* camera_;
-  ImageReader* yuvReader_;
-  ImageReader* jpgReader_;
+  private:
+    void OnPhotoTaken(const char* fileName);
+    int  GetDisplayRotation(void);
+
+    struct android_app* app_;
+    ImageFormat         savedNativeWinRes_;
+    bool                cameraGranted_;
+    int                 rotation_;
+    volatile bool       cameraReady_;
+    NDKCamera*          camera_;
+    ImageReader*        yuvReader_;
+    ImageReader*        jpgReader_;
 };
 
 /**

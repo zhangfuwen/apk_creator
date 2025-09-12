@@ -1,5 +1,6 @@
 // RectanglesRenderer.cpp
 #include "rectangles_renderer.h"
+#include <GLES2/gl2.h>
 #include <cstdio>
 #include <cstdlib>
 
@@ -187,6 +188,17 @@ void RectanglesRenderer::render() {
 
     // Draw all rectangles in one call
     glDrawElementsInstanced(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, 0, (GLsizei)instances.size());
+
+    glDisableVertexAttribArray(offsetScaleLoc);
+    glDisableVertexAttribArray(colorLoc);
+    glDisableVertexAttribArray(posLoc);
+    glVertexAttribDivisor(colorLoc, 0);
+    glVertexAttribDivisor(offsetScaleLoc, 0);
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+    glUseProgram(0);
+
 }
 
 void RectanglesRenderer::clear() {

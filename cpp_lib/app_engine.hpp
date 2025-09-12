@@ -13,6 +13,7 @@
 #include <stdint.h>
 #include <tuple>
 #include <memory>
+#include <future>
 
 #include <jni.h>
 #include <android/native_activity.h>
@@ -25,9 +26,11 @@
 #include <dlfcn.h>
 #include "renderer/eye_renderer.h"
 #include "renderer/gl.h"
+#include "renderer/texture_renderer.hpp"
 
 #include "ndk_utils/log.h"
 #include "ndk_utils/util.h"
+#include "ndk_utils/data_types.h"
 
 #include "audio/OboeEngine.h"
 #include "camera/CameraController.hpp"
@@ -59,11 +62,15 @@ struct AppEngine {
                         break;
                     }
                     appEngine->m_window = app->window;
-                    //                    appEngine->initDisplay();
+#if (!RENDER_CAM_TO_WINDOW)
+                    appEngine->initDisplay();
+#endif // RENDER_CAM_TO_WINDOW
 
                     appEngine->playMp3();
-                    appEngine->initYolo();
-                    appEngine->m_initialized = true;
+
+                    appEngine->m_yoloInit = std::async(std::launch::async, [appEngine]() {
+                        appEngine->initYolo();
+                    });
                     appEngine->m_oboeEngine.start();
                     // if (!appEngine->m_camCtrl.openAndCapture("0")) {
                     //     LOGE("Failed to open camera");
@@ -73,6 +80,8 @@ struct AppEngine {
                                                              ANativeWindow_getHeight(app->window),
                                                              ANativeWindow_getFormat(app->window));
                     appEngine->m_camEngine->OnAppInitWindow();
+                    appEngine->m_rgba.bits = nullptr;
+                    appEngine->m_initialized = true;
 
                     // auto yolov8 = new YOLOv8_det_coco();
                     // auto assetMgr = app->activity->assetManager;
@@ -177,7 +186,6 @@ struct AppEngine {
         }
 
         LOGI("OpenGL ES initialized");
-        m_initialized = true;
         compileProgromOnce();
         return true;
     }
@@ -207,6 +215,12 @@ struct AppEngine {
             m_2dScene->addRectangle(std::make_shared<renderer_2d::Rectangle>(0.8, 0.8, 0.2, 0.2));
             m_eyeRenderer = new EyeRenderer();
             //eye_renderer->resize(800, 600);
+            m_textureRenderer = new TextureRenderer();
+            if (!m_textureRenderer->init()) {
+                LOGE("init texture renderer failed");
+                delete m_textureRenderer;
+                m_textureRenderer = nullptr;
+            }
         }
     }
 
@@ -230,25 +244,79 @@ struct AppEngine {
             m_eyeRenderer->playMouth();
         }
         m_eyeRenderer->update((float)delta_time_second);
-        m_2dScene->update();
+        //m_2dScene->update();
     }
 
     // Render loop: clear screen to blue
     void draw() {
+#if RENDER_CAM_TO_WINDOW
+        /*
         m_camEngine->DrawFrame([this](uint8_t* data, int32_t width, int32_t height, int32_t stride) {
             YoloProcesser(data, width, height, stride);
         });
-        // m_camEngine->DrawFrame(nullptr);
+        */
+        m_camEngine->DrawFrame();
+
+#endif
         if (!m_initialized)
             return;
 
 
-        //glClearColor(g_color.r, g_color.g, g_color.b, g_color.a);
-        // glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-        // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        // //        scene->draw();
-        // m_eyeRenderer->render();
-        // eglSwapBuffers(m_display, m_surface);
+#if (!RENDER_CAM_TO_WINDOW)
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        if (m_camEngine == nullptr) {
+            LOGE("m_camEngine == nullptr");
+            return;
+        }
+        m_rgba.format = WINDOW_FORMAT_RGBA_8888;
+        if(m_rgba.bits == nullptr) {
+            m_rgba.width = m_rgba.stride = 480;
+            m_rgba.height = 640;
+            m_rgba.bits = new uint8_t[m_rgba.width * m_rgba.height * 4];
+        }
+        auto ret = m_camEngine->GetImageData(m_rgba);
+        if (ret == 0) {
+            // memset(m_rgba.bits, 0xff, m_rgba.width * m_rgba.height * 4);
+            // uint32_t* data = (uint32_t*)m_rgba.bits;
+            // int r = m_rgba.height -1;
+            // int c = 0;
+            // data[r * m_rgba.stride + c] = 0xff0000ff;
+            // r = m_rgba.height - 2;
+            // c = 1;
+            // data[r * m_rgba.stride + c] = 0xff00ff00;
+            // r = m_rgba.height - 3;
+            // c = 2;
+            // data[r * m_rgba.stride + c] = 0xff00ff00;
+            // for (int r = 0; r < m_rgba.height; r++) {
+            //     if ( r < m_rgba.height - 2) {
+            //         continue;
+            //     }
+            //     for(int c = 0; c < m_rgba.stride; c++) {
+            //         if (c > 2 ) {
+            //             continue;
+            //         }
+            //         data[r * m_rgba.stride + c] = 0xff00ff00;
+            //     }
+            // }
+            // for (int c = 0; c < m_rgba.width; c++) {
+            //     for(int r = 0; r < m_rgba.height; r++) {
+            //         if (r > 2 && r < m_rgba.height - 2) {
+            //             continue;
+            //         }
+            //         data[r * m_rgba.stride + c] = 0xff00ff00;
+            //         
+            //     }
+            // }
+            m_textureRenderer->loadTexture(m_rgba.bits, m_rgba.width, m_rgba.height);
+        }
+
+        m_2dScene->draw();
+
+        m_eyeRenderer->render();
+        m_textureRenderer->render();
+        eglSwapBuffers(m_display, m_surface);
+#endif
     }
 
     void playMp3() {
@@ -283,7 +351,7 @@ struct AppEngine {
         LOGI("buf %p, size %zu", buf->data(), size);
         auto readCount = AAsset_read(asset, buf->data(), size);
         LOGI("readCount %d", readCount);
-        if (readCount != size) {
+        if (readCount != (int)size) {
             LOGE("Failed to read asset: %s", filepath.c_str());
             return {nullptr, 0};
         }
@@ -366,20 +434,20 @@ struct AppEngine {
     }
 
   private:
-    android_app* m_app;
-    bool         m_initialized;
+    android_app* m_app = nullptr;
+    bool         m_initialized = false;
 
-    ANativeWindow* m_window;
+    ANativeWindow* m_window = nullptr;
     EGLDisplay     m_display;
     EGLSurface     m_surface;
     EGLContext     m_context;
 
     OboeEngine       m_oboeEngine;
     CameraController m_camCtrl;
-    CameraEngine*    m_camEngine;
+    CameraEngine*    m_camEngine = nullptr;
 
-    renderer_2d::Scene* m_2dScene;
-    EyeRenderer*        m_eyeRenderer;
+    renderer_2d::Scene* m_2dScene = nullptr;
+    EyeRenderer*        m_eyeRenderer = nullptr;
 
     double m_lastUpdateTime = 0.0f;
     double m_lastAnimationTime = 0.0f;
@@ -387,4 +455,12 @@ struct AppEngine {
     std::tuple<std::shared_ptr<std::vector<uint8_t>>, size_t> m_mp3Data = {nullptr, 0};
 
     YOLOv8* m_yolov8 = nullptr;
+    std::future<void> m_yoloInit;
+
+    TextureRenderer  *m_textureRenderer = nullptr;
+    std::vector<uint8_t> mTextureData; // Keep alive
+#if (!RENDER_CAM_TO_WINDOW)
+    ANativeWindow_Buffer m_rgba;
+#endif
+
 };

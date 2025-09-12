@@ -63,7 +63,7 @@ class Mp3SoundGenerator : public TappableAudioSource {
     }
 
     // Switch the tones on
-    void tap(bool isOn) override { }
+    void tap(bool isOn) override { (void)isOn; }
 
     void renderAudio(float* audioData, int32_t numFrames) override {
         LOGV("renderAudio numFrames %d", numFrames);
@@ -75,7 +75,7 @@ class Mp3SoundGenerator : public TappableAudioSource {
                 LOGV("Decode failed");
                 std::fill_n(mBuffer.get(), kSharedBufferSize, 0);
             }
-            for (int j = 0; j < ret; ++j) {
+            for (int j = 0; j < (int)ret; ++j) {
                 audioData[(j * mChannelCount) + i] = mBuffer[j];
             }
         }

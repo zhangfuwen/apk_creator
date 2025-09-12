@@ -9,17 +9,16 @@ fi
 
 source .ndk_env
 
-bash scripts/vcpkg_setup.sh
-bash scripts/rust_setup.sh
+source scripts/vcpkg_setup.sh
+source scripts/rust_setup.sh
 
 echo "## install oboe"
 vcpkg install oboe:arm64-android
 vcpkg install opencv4:arm64-android
 
-bash java/build.sh
-bash cpp_lib/build.sh
-bash cpp_lib/copy.sh
-bash rust_lib/build.sh
-bash rust_lib/copy.sh
-
-bash scripts/build_pack.sh
+bash java/build.sh \
+&& bash cpp_lib/build.sh \
+&& bash cpp_lib/copy.sh \
+&& bash rust_lib/build.sh \
+&& bash rust_lib/copy.sh \
+&& bash scripts/build_pack.sh

@@ -20,8 +20,6 @@
 #include "ndk_utils/log.h"
 #include "camera_utils.h"
 
-#include <cinttypes>
-#include <queue>
 #include <utility>
 
 /**
@@ -47,6 +45,7 @@ NDKCamera::NDKCamera()
   cameras_.clear();
   cameraMgr_ = ACameraManager_create();
   ASSERT(cameraMgr_, "Failed to create cameraManager");
+  PrintCameras(cameraMgr_);
 
   // Pick up a back-facing camera to preview
   EnumerateCamera();
@@ -190,6 +189,7 @@ bool NDKCamera::MatchCaptureSizeRequest(ANativeWindow* display,
 
     if (format == AIMAGE_FORMAT_YUV_420_888 || format == AIMAGE_FORMAT_JPEG) {
       DisplayDimension res(entry.data.i32[i + 1], entry.data.i32[i + 2]);
+      LOGI("disp: %d x %d, res: %d x %d", disp.width(), disp.height(), res.width(), res.height());
       if (!disp.IsSameRatio(res)) continue;
       if (format == AIMAGE_FORMAT_YUV_420_888 && foundRes > res) {
         foundIt = true;
