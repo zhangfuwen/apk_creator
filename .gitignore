@@ -5,3 +5,4 @@ compile_commands.json
 rust_lib/target
 venv
 models
+.local

@@ -20,7 +20,7 @@
 
 #include <opencv2/core/core.hpp>
 
-#include "mat.h"
+#include "ncnn/mat.h"
 
 static void onDisconnected(void* context, ACameraDevice* device)
 {

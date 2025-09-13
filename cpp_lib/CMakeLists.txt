@@ -29,10 +29,15 @@ set(NCNN_VULKAN
 
 FetchContent_Declare(
   ncnn
-  GIT_REPOSITORY https://github.com/Tencent/ncnn.git
-  GIT_TAG 20250503
-  SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/ncnn/src
+  URL http://127.0.0.1:8000/ncnn-20250503-android-vulkan-shared.zip
+      https://github.com/Tencent/ncnn/releases/download/20250503/ncnn-20250503-android-vulkan-shared.zip
+  URL_HASH MD5=ad8e640e68a71f83dd8979bc78ce6766
+  SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/ncnn/src DOWNLOAD_EXTRACT_TIMESTAMP
+  true
 )
+
+# FetchContent_Declare( ncnn GIT_REPOSITORY https://github.com/Tencent/ncnn.git
+# GIT_TAG 20250503 SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/ncnn/src )
 
 FetchContent_MakeAvailable(ncnn)
 
@@ -68,7 +73,13 @@ set(OBOE_ENABLE_OPENSL
 set(OBOE_INCLUDE_DIR ${VCPKG_ROOT}/installed/arm64-android/include)
 set(OBOE_LINK_DIR ${VCPKG_ROOT}/installed/arm64-android/lib)
 
+set(NCNN_INCLUDE_DIR ${PROJECT_BINARY_DIR}/ncnn/src/arm64-v8a/include)
+set(NCNN_LINK_DIR ${PROJECT_BINARY_DIR}/ncnn/src/arm64-v8a/lib)
+
 add_subdirectory(ai)
+target_include_directories(yolov8ncnn PUBLIC ${NCNN_INCLUDE_DIR})
+target_link_directories(yolov8ncnn PUBLIC ${NCNN_LINK_DIR})
+target_link_libraries(yolov8ncnn PUBLIC ${log-lib} ${android-lib} ${camera-lib} ${media-lib})
 
 # Main native library
 add_library(
@@ -93,13 +104,15 @@ set_target_properties(
              CXX_EXTENSIONS OFF
 )
 target_include_directories(
-  main SYSTEM PRIVATE ${CMAKE_ANDROID_NDK}/sources/android/native_app_glue
-                      ${OBOE_INCLUDE_DIR} ${CMAKE_SOURCE_DIR}
+  main SYSTEM
+  PRIVATE ${CMAKE_ANDROID_NDK}/sources/android/native_app_glue
+          ${OBOE_INCLUDE_DIR} ${CMAKE_SOURCE_DIR} ${NCNN_INCLUDE_DIR}
 )
-target_link_directories(main PRIVATE ${OBOE_LINK_DIR})
+target_link_directories(main PRIVATE ${OBOE_LINK_DIR} ${NCNN_LINK_DIR})
 target_compile_options(
   main PRIVATE -Wall -Wextra -Werror # Treat all warnings as errors
-  -DRENDER_CAM_TO_WINDOW=0
+               -DRENDER_CAM_TO_WINDOW=0
+               -DNCNN_VULKAN=1
 )
 
 # Extract numeric API level from ANDROID_PLATFORM (e.g., android-24 → 24)

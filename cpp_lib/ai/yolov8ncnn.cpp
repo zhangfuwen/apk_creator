@@ -23,8 +23,8 @@
 #include <string>
 #include <vector>
 
-#include <platform.h>
-#include <benchmark.h>
+#include "ncnn/platform.h"
+#include "ncnn/benchmark.h"
 
 #include "yolov8.h"
 

@@ -1,3 +1,4 @@
+#define NCNN_VULKAN 1
 #include <android/asset_manager.h>
 #include <android/input.h>
 #include <android_native_app_glue.h>
@@ -25,11 +26,6 @@
 #include "java_helpers/java_helper.hpp"
 #include "rust_helper.hpp"
 
-#define STRINGIFY(x)      #x
-#define TOSTRING(x)       STRINGIFY(x)
-#define PRINT_MACRO(name) _Pragma(TOSTRING(message(#name " = " TOSTRING(name))))
-
-// PRINT_MACRO(__ANDROID_API__)
 
 struct android_app* gapp = nullptr;
 

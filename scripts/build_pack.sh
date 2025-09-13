@@ -54,16 +54,17 @@ if [[ -d build/native_libs ]]; then
     cd build/native_libs
     zip -g ../apk/app-unaligned.apk lib/arm64-v8a/libmain.so
     zip -g ../apk/app-unaligned.apk lib/arm64-v8a/libyolov8ncnn.so
+    zip -g ../apk/app-unaligned.apk lib/arm64-v8a/libncnn.so
     cd ../..
 fi
 
 echo "Add rust library to apk"
-if [[ -d build/native_libs/lib/arm64-v8a/librust_lib.so ]]; then
+if [[ -f build/native_libs/lib/arm64-v8a/librust_lib.so ]]; then
     cd build/native_libs
     zip -g ../apk/app-unaligned.apk lib/arm64-v8a/librust_lib.so
     cd ../..
 fi
-if [[ -d build/native_libs/lib/arm64-v8a/libc++_shared.so ]]; then
+if [[ -f build/native_libs/lib/arm64-v8a/libc++_shared.so ]]; then
     cd build/native_libs
     zip -g ../apk/app-unaligned.apk lib/arm64-v8a/libc++_shared.so
     cd ../..

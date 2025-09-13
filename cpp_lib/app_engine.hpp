@@ -1,4 +1,3 @@
-#include "ai/yolov8.h"
 #define DR_MP3_IMPLEMENTATION
 #include <android/asset_manager.h>
 #include <android/input.h>
@@ -36,7 +35,12 @@
 #include "camera/CameraController.hpp"
 #include "camera/camera_engine.h"
 
+#include "ndk_utils/util.h"
+PRINT_MACRO(NCNN_VULKAN);
 #include "ai/yolov8.h"
+PRINT_MACRO(NCNN_VULKAN);
+
+#include "ncnn/gpu.h"
 
 struct AppEngine {
     AppEngine(android_app* app) : m_app(app) { app->userData = this; }
@@ -68,9 +72,9 @@ struct AppEngine {
 
                     appEngine->playMp3();
 
-                    appEngine->m_yoloInit = std::async(std::launch::async, [appEngine]() {
+//                    appEngine->m_yoloInit = std::async(std::launch::async, [appEngine]() {
                         appEngine->initYolo();
-                    });
+//                    });
                     appEngine->m_oboeEngine.start();
                     // if (!appEngine->m_camCtrl.openAndCapture("0")) {
                     //     LOGE("Failed to open camera");

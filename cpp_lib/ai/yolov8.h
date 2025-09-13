@@ -15,9 +15,14 @@
 #ifndef YOLOV8_H
 #define YOLOV8_H
 
+#define STRINGIFY(x)      #x
+#define TOSTRING(x)       STRINGIFY(x)
+#define PRINT_MACRO(name) _Pragma(TOSTRING(message(#name " = " TOSTRING(name))))
+PRINT_MACRO(NCNN_VULKAN);
 #include <opencv2/core/core.hpp>
 
-#include <net.h>
+#include "ncnn/net.h"
+PRINT_MACRO(NCNN_VULKAN);
 
 struct KeyPoint
 {

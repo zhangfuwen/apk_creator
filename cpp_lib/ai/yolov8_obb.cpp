@@ -78,7 +78,7 @@
 
 #include "yolov8.h"
 
-#include "layer.h"
+#include "ncnn/layer.h"
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
