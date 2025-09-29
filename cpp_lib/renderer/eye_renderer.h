@@ -4,6 +4,8 @@
 #include <math.h>
 #include <GLES3/gl32.h>
 
+#include "input_handler.h"
+
 // 2D vector helper
 struct Vec2 {
     float x, y;
@@ -26,7 +28,7 @@ struct Animation {
 float evaluateAnimation(const Animation& anim, float t);
 
 // --- Eye Renderer Class ---
-class EyeRenderer {
+class EyeRenderer : public InputHandler {
 public:
     EyeRenderer();
     ~EyeRenderer();
@@ -93,6 +95,8 @@ private:
     void drawPupil(const Eye& eye, float idleOffset);
     void drawEyelid(const Eye& eye, float blink);
     void drawWrinkles(const Eye& eye, float wrinkle);
+
+    void handleMotion(float x, float y, int mask) override;
 
     void drawMouth(float t, float smileFactor, float openFactor);
 

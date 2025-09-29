@@ -29,20 +29,10 @@
 
 struct android_app* gapp = nullptr;
 
-void HandleKey(int keycode, int bDown) {
-    LOGV("Key: code %d (down:%d)\n", keycode, bDown);
-}
-
-void HandleButton(int x, int y, int button, int bDown) {
-    LOGV("Button(x:%d, y:%d, button:%d, bDown:%d)\n", x, y, button, bDown);
-}
-
-void HandleMotion(int x, int y, int mask) {
-    LOGV("Motion: %d,%d (%d)\n", x, y, mask);
-}
 
 int32_t HandleInput(struct android_app* app, AInputEvent* event) {
     LOGV("handle_input\n");
+    AppEngine * engine = (AppEngine*)app->userData;
 
 #ifdef ANDROID
     if (AInputEvent_getType(event) == AINPUT_EVENT_TYPE_MOTION) {
@@ -62,7 +52,7 @@ int32_t HandleInput(struct android_app* app, AInputEvent* event) {
                 int id = index;
                 if (action == AMOTION_EVENT_ACTION_POINTER_DOWN && id != whichsource)
                     continue;
-                HandleButton(x, y, id, 1);
+                engine->handleButton(x, y, id, 1);
                 downmask |= 1 << id;
                 ANativeActivity_showSoftInput(app->activity, ANATIVEACTIVITY_SHOW_SOFT_INPUT_FORCED);
             } else if (action == AMOTION_EVENT_ACTION_POINTER_UP || action == AMOTION_EVENT_ACTION_UP
@@ -70,10 +60,10 @@ int32_t HandleInput(struct android_app* app, AInputEvent* event) {
                 int id = index;
                 if (action == AMOTION_EVENT_ACTION_POINTER_UP && id != whichsource)
                     continue;
-                HandleButton(x, y, id, 0);
+                engine->handleButton(x, y, id, 0);
                 downmask &= ~(1 << id);
             } else if (action == AMOTION_EVENT_ACTION_MOVE) {
-                HandleMotion(x, y, index);
+                engine->handleMotion(x, y, index);
             }
         }
         return 1;

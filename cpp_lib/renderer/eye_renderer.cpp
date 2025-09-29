@@ -401,3 +401,12 @@ void EyeRenderer::compileShader() {
     LOGI("Program: %d, attribPosition: %d, uniformColor: %d, uniformResolution: %d", program, attribPosition,
          uniformColor, uniformResolution);
 }
+
+void EyeRenderer::handleMotion(float x, float y, int mask) {
+    LOGV("Motion: %f,%f (%d)\n", x, y, mask);
+    if ( x > 0.5f) {
+        playBlink();
+    } else {
+        playMouth();
+    }
+}

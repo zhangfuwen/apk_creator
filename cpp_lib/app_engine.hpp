@@ -1,4 +1,4 @@
-#define DR_MP3_IMPLEMENTATION
+#define DR_MP3_IMPLEMENTATION 1
 #include <android/asset_manager.h>
 #include <android/input.h>
 #include <android_native_app_glue.h>
@@ -41,6 +41,8 @@ PRINT_MACRO(NCNN_VULKAN);
 PRINT_MACRO(NCNN_VULKAN);
 
 #include "ncnn/gpu.h"
+
+#include "input_handler.h"
 
 struct AppEngine {
     AppEngine(android_app* app) : m_app(app) { app->userData = this; }
@@ -146,9 +148,33 @@ struct AppEngine {
         if (!m_initialized) {
             return false;
         }
-        //update();
+        update();
         draw();
         return true;
+    }
+
+    void handleKey(int keycode, int bDown) {
+        LOGV("Key: code %d (down:%d)\n", keycode, bDown);
+        for (auto handler : m_inputHandlers) {
+            handler->handleKey(keycode, bDown);
+        }
+    }
+
+    void handleButton(int x, int y, int button, int bDown) {
+        LOGV("Button(x:%d, y:%d, button:%d, bDown:%d)\n", x, y, button, bDown);
+        float x_norm = (float)x / ANativeWindow_getWidth(m_window);
+        float y_norm = (float)y / ANativeWindow_getHeight(m_window);
+        LOGV("Button(x:%f, y:%f, button:%d, bDown:%d)\n", x_norm, y_norm, button, bDown);
+        for (auto handler : m_inputHandlers) {
+            handler->handleButton(x_norm, y_norm, button, bDown);
+        }
+    }
+
+    void handleMotion(int x, int y, int mask) {
+        LOGV("Motion: %d,%d (%d)\n", x, y, mask);
+        for (auto handler : m_inputHandlers) {
+            handler->handleMotion(x, y, mask);
+        }
     }
 
   private:
@@ -218,6 +244,7 @@ struct AppEngine {
             m_2dScene->addRectangle(std::make_shared<renderer_2d::Rectangle>(0.5, 0.5, 0.2, 0.2));
             m_2dScene->addRectangle(std::make_shared<renderer_2d::Rectangle>(0.8, 0.8, 0.2, 0.2));
             m_eyeRenderer = new EyeRenderer();
+            m_inputHandlers.push_back(m_eyeRenderer);
             //eye_renderer->resize(800, 600);
             m_textureRenderer = new TextureRenderer();
             if (!m_textureRenderer->init()) {
@@ -269,26 +296,26 @@ struct AppEngine {
 #if (!RENDER_CAM_TO_WINDOW)
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        if (m_camEngine == nullptr) {
-            LOGE("m_camEngine == nullptr");
-            return;
-        }
-        m_rgba.format = WINDOW_FORMAT_RGBA_8888;
-        if(m_rgba.bits == nullptr) {
-            m_rgba.width = m_rgba.stride = 640;
-            m_rgba.height = 480;
-            m_rgba.bits = new uint8_t[m_rgba.width * m_rgba.height * 4];
-        }
-        auto ret = m_camEngine->GetImageData(m_rgba);
-        if (ret == 0) {
-            YoloProcesser((uint8_t*)m_rgba.bits, m_rgba.width, m_rgba.height, m_rgba.stride*4);
-            m_textureRenderer->loadTexture(m_rgba.bits, m_rgba.width, m_rgba.height);
-        }
+        // if (m_camEngine == nullptr) {
+        //     LOGE("m_camEngine == nullptr");
+        //     return;
+        // }
+        // m_rgba.format = WINDOW_FORMAT_RGBA_8888;
+        // if(m_rgba.bits == nullptr) {
+        //     m_rgba.width = m_rgba.stride = 640;
+        //     m_rgba.height = 480;
+        //     m_rgba.bits = new uint8_t[m_rgba.width * m_rgba.height * 4];
+        // }
+        // auto ret = m_camEngine->GetImageData(m_rgba);
+        // if (ret == 0) {
+        //     YoloProcesser((uint8_t*)m_rgba.bits, m_rgba.width, m_rgba.height, m_rgba.stride*4);
+        //     m_textureRenderer->loadTexture(m_rgba.bits, m_rgba.width, m_rgba.height);
+        // }
 
-        m_2dScene->draw();
+        //m_2dScene->draw();
 
         m_eyeRenderer->render();
-        m_textureRenderer->render();
+        //m_textureRenderer->render();
         eglSwapBuffers(m_display, m_surface);
 #endif
     }
@@ -427,6 +454,7 @@ struct AppEngine {
     CameraController m_camCtrl;
     CameraEngine*    m_camEngine = nullptr;
 
+    std::vector<InputHandler*> m_inputHandlers;
     renderer_2d::Scene* m_2dScene = nullptr;
     EyeRenderer*        m_eyeRenderer = nullptr;
 
