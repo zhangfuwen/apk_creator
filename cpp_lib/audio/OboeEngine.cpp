@@ -115,6 +115,7 @@ oboe::Result OboeEngine::start() {
                 mLatencyCallback->setSource(std::dynamic_pointer_cast<IRenderableAudio>(mAudioSource));
                 LOGI("using synthetic source");
             } else {
+                mMp3AudioSource->setSampleRate(mStream->getSampleRate());
                 mLatencyCallback->setSource(std::dynamic_pointer_cast<IRenderableAudio>(mMp3AudioSource));
                 LOGI("using mp3 source");
             }

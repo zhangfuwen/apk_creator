@@ -402,9 +402,17 @@ void EyeRenderer::compileShader() {
          uniformColor, uniformResolution);
 }
 
+void EyeRenderer::handleButton([[maybe_unused]] float x, [[maybe_unused]] float y, [[maybe_unused]] int button, [[maybe_unused]] int bDown) { 
+    if (x > 0.0f) {
+        playBlink();
+    } else {
+        playMouth();
+    }
+}
+
 void EyeRenderer::handleMotion(float x, float y, int mask) {
-    LOGV("Motion: %f,%f (%d)\n", x, y, mask);
-    if ( x > 0.5f) {
+    LOGD("Motion: %f,%f (%d)\n", x, y, mask);
+    if ( x > 0.0f) {
         playBlink();
     } else {
         playMouth();

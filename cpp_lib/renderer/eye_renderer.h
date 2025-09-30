@@ -97,6 +97,7 @@ private:
     void drawWrinkles(const Eye& eye, float wrinkle);
 
     void handleMotion(float x, float y, int mask) override;
+    void handleButton(float x, float y, int button, int bDown) override;
 
     void drawMouth(float t, float smileFactor, float openFactor);
 

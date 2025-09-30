@@ -1,3 +1,4 @@
+#include <unordered_map>
 #define DR_MP3_IMPLEMENTATION 1
 #include <android/asset_manager.h>
 #include <android/input.h>
@@ -11,6 +12,7 @@
 #include <stdlib.h>  // for srand and rand
 #include <stdint.h>
 #include <tuple>
+#include <set>
 #include <memory>
 #include <future>
 
@@ -44,6 +46,13 @@ PRINT_MACRO(NCNN_VULKAN);
 
 #include "input_handler.h"
 
+
+using Mp3Data = std::tuple<std::shared_ptr<std::vector<uint8_t>>, size_t>;
+
+bool pointInRect(float x, float y, float x1, float y1, float w, float h) {
+    return x > x1 && x < x1 + w && y > y1 && y < y1+h;
+}
+
 struct AppEngine {
     AppEngine(android_app* app) : m_app(app) { app->userData = this; }
 
@@ -70,13 +79,17 @@ struct AppEngine {
                     appEngine->m_window = app->window;
 #if (!RENDER_CAM_TO_WINDOW)
                     appEngine->initDisplay();
-#endif // RENDER_CAM_TO_WINDOW
+#endif  // RENDER_CAM_TO_WINDOW
 
                     appEngine->playMp3();
 
-//                    appEngine->m_yoloInit = std::async(std::launch::async, [appEngine]() {
-                        appEngine->initYolo();
-//                    });
+                    //                    appEngine->m_yoloInit = std::async(std::launch::async, [appEngine]() {
+                    appEngine->initYolo();
+                    //                    });
+                    AConfiguration* config = AConfiguration_new();
+                    AConfiguration_fromAssetManager(config, app->activity->assetManager);
+                    appEngine->m_screenWidth = AConfiguration_getScreenWidthDp(config);
+                    appEngine->m_screenHeight = AConfiguration_getScreenHeightDp(config);
                     appEngine->m_oboeEngine.start();
                     // if (!appEngine->m_camCtrl.openAndCapture("0")) {
                     //     LOGE("Failed to open camera");
@@ -161,19 +174,30 @@ struct AppEngine {
     }
 
     void handleButton(int x, int y, int button, int bDown) {
-        LOGV("Button(x:%d, y:%d, button:%d, bDown:%d)\n", x, y, button, bDown);
-        float x_norm = (float)x / ANativeWindow_getWidth(m_window);
-        float y_norm = (float)y / ANativeWindow_getHeight(m_window);
+        LOGD("Button(x:%d, y:%d, button:%d, bDown:%d)\n", x, y, button, bDown);
+        x -= m_screenWidth / 2;
+        y -= m_screenHeight / 2;
+        float x_norm = (float)x / m_screenWidth;
+        float y_norm = (float)y / m_screenHeight;
         LOGV("Button(x:%f, y:%f, button:%d, bDown:%d)\n", x_norm, y_norm, button, bDown);
+        if (pointInRect(x_norm, y_norm, -1, -1, 1,1)) { playMp3("robot_boot.mp3"); }
+        if (pointInRect(x_norm, y_norm, 0, -1, 1,1)) { playMp3("robot_random_code.mp3"); }
+        if (pointInRect(x_norm, y_norm, -1, 0, 1,1)) { playMp3("robot_thankyou.mp3"); }
+        if (pointInRect(x_norm, y_norm, 0, 0, 1,1)) { playMp3("test.mp3"); }
         for (auto handler : m_inputHandlers) {
             handler->handleButton(x_norm, y_norm, button, bDown);
         }
     }
 
     void handleMotion(int x, int y, int mask) {
-        LOGV("Motion: %d,%d (%d)\n", x, y, mask);
+        LOGD("Motion: %d,%d (%d)\n", x, y, mask);
+        x -= m_screenWidth / 2;
+        y -= m_screenHeight / 2;
+        float x_norm = (float)x / m_screenWidth;
+        float y_norm = (float)y / m_screenHeight;
+
         for (auto handler : m_inputHandlers) {
-            handler->handleMotion(x, y, mask);
+            handler->handleMotion(x_norm, y_norm, mask);
         }
     }
 
@@ -265,14 +289,13 @@ struct AppEngine {
         // }
         if (now - m_lastAnimationTime > 5.0f) {
             //           oboeEngine.tap(true);
-            playMp3();
             m_lastAnimationTime = now;
-            if (rand() % 2 == 0) {
-                m_eyeRenderer->playBlink(1.0f);
-            } else {
-                m_eyeRenderer->playSleepy(3.0f);
-            }
-            m_eyeRenderer->playMouth();
+            // if (rand() % 2 == 0) {
+            //     m_eyeRenderer->playBlink(0.5f);
+            // } else {
+            //     m_eyeRenderer->playSleepy(1.0f);
+            // }
+            // m_eyeRenderer->playMouth();
         }
         m_eyeRenderer->update((float)delta_time_second);
         //m_2dScene->update();
@@ -320,20 +343,25 @@ struct AppEngine {
 #endif
     }
 
-    void playMp3() {
-        if (std::get<0>(m_mp3Data) == nullptr) {
-            m_mp3Data = readAsset("test.mp3");
-            if (std::get<0>(m_mp3Data) == nullptr) {
-                LOGE("Failed to read asset: %s", "test.mp3");
+    void playMp3(std::string name = "test.mp3") {
+        Mp3Data mp3Data = {nullptr, 0};
+        if (!m_audioData.contains(name)) {
+            if (!m_audioNames.contains(name)) {
+                LOGE("unknown audio name");
                 return;
             }
+            mp3Data = readAsset(name);
+            if (std::get<0>(mp3Data) == nullptr) {
+                LOGE("Failed to read asset: %s", name.c_str());
+                return;
+            }
+            m_audioData[name] = mp3Data;
         }
-        m_oboeEngine.playMp3((uint8_t*)std::get<0>(m_mp3Data)->data(), std::get<1>(m_mp3Data));
+        m_oboeEngine.playMp3((uint8_t*)std::get<0>(mp3Data)->data(), std::get<1>(mp3Data));
     }
 
 
   private:
-
     void assetTest() {
         auto [text, text_size] = readAsset("test.txt");
         LOGI("asset text(size %ld): %s", text_size, (char*)text->data());
@@ -377,12 +405,9 @@ struct AppEngine {
 
             bool use_gpu = true;
             bool use_turnip = false;
-            if (use_turnip)
-            {
+            if (use_turnip) {
                 ncnn::create_gpu_instance("libvulkan_freedreno.so");
-            }
-            else if (use_gpu)
-            {
+            } else if (use_gpu) {
                 ncnn::create_gpu_instance();
             }
 
@@ -415,8 +440,8 @@ struct AppEngine {
 
         cv::Mat rgb(height, width, CV_8UC3);
 
-        for(int i = 0; i < height; i++) {
-            for(int j = 0; j < width; j++) {
+        for (int i = 0; i < height; i++) {
+            for (int j = 0; j < width; j++) {
                 rgb.at<cv::Vec3b>(i, j)[0] = rgba[i * stride + j * 4 + 0];
                 rgb.at<cv::Vec3b>(i, j)[1] = rgba[i * stride + j * 4 + 1];
                 rgb.at<cv::Vec3b>(i, j)[2] = rgba[i * stride + j * 4 + 2];
@@ -426,19 +451,19 @@ struct AppEngine {
         m_yolov8->detect(rgb, objects);
         if (!objects.empty()) {
             LOGI("detected %zu objects", objects.size());
-            LOGI("first: %d, %f, %f, %f, %f", objects[0].label, objects[0].rect.x, objects[0].rect.y, objects[0].rect.width, objects[0].rect.height);
+            LOGI("first: %d, %f, %f, %f, %f", objects[0].label, objects[0].rect.x, objects[0].rect.y,
+                 objects[0].rect.width, objects[0].rect.height);
         }
 
         m_yolov8->draw(rgb, objects);
 
-        for(int row = 0; row < height; row++) {
-            for(int col = 0; col < width; col++) {
+        for (int row = 0; row < height; row++) {
+            for (int col = 0; col < width; col++) {
                 rgba[row * stride + col * 4 + 0] = rgb.at<cv::Vec3b>(row, col)[0];
                 rgba[row * stride + col * 4 + 1] = rgb.at<cv::Vec3b>(row, col)[1];
                 rgba[row * stride + col * 4 + 2] = rgb.at<cv::Vec3b>(row, col)[2];
             }
         }
-
     }
 
   private:
@@ -450,26 +475,34 @@ struct AppEngine {
     EGLSurface     m_surface;
     EGLContext     m_context;
 
+    int32_t m_screenWidth = 0;
+    int32_t m_screenHeight = 0;
+
+    std::set<std::string> m_audioNames = {
+        "test.mp3",
+        "robot_boot.mp3",
+        "robot_thankyou.mp3",
+        "robot_random_code.mp3"
+    };
+    std::unordered_map<std::string, Mp3Data> m_audioData;
     OboeEngine       m_oboeEngine;
     CameraController m_camCtrl;
     CameraEngine*    m_camEngine = nullptr;
 
     std::vector<InputHandler*> m_inputHandlers;
-    renderer_2d::Scene* m_2dScene = nullptr;
-    EyeRenderer*        m_eyeRenderer = nullptr;
+    renderer_2d::Scene*        m_2dScene = nullptr;
+    EyeRenderer*               m_eyeRenderer = nullptr;
 
     double m_lastUpdateTime = 0.0f;
     double m_lastAnimationTime = 0.0f;
 
-    std::tuple<std::shared_ptr<std::vector<uint8_t>>, size_t> m_mp3Data = {nullptr, 0};
 
-    YOLOv8* m_yolov8 = nullptr;
+    YOLOv8*           m_yolov8 = nullptr;
     std::future<void> m_yoloInit;
 
-    TextureRenderer  *m_textureRenderer = nullptr;
-    std::vector<uint8_t> mTextureData; // Keep alive
+    TextureRenderer*     m_textureRenderer = nullptr;
+    std::vector<uint8_t> mTextureData;  // Keep alive
 #if (!RENDER_CAM_TO_WINDOW)
     ANativeWindow_Buffer m_rgba;
 #endif
-
 };
